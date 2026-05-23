@@ -144,8 +144,9 @@ export default function App() {
             {/* Ambient neon blurring */}
             <div className="absolute inset-0 rounded-2xl bg-indigo-500/20 blur-xl animate-pulse" />
             
-            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-950 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-950/50">
-              <Sparkles className="w-9 h-9 text-indigo-400 animate-pulse" />
+            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-950 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-950/50 p-3">
+              <img src="/logo.png" alt="Mooderia Education Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <Sparkles className="w-9 h-9 text-indigo-400 animate-pulse hidden" />
             </div>
           </motion.div>
 
@@ -228,10 +229,11 @@ export default function App() {
         {/* Phone minimal HUD tray bar */}
         <header className="fixed top-0 left-0 right-0 h-14 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 px-4 py-2 flex items-center justify-between z-30">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-600">
-              <ShieldCheck className="w-4 h-4 text-white fill-current" />
+            <div className="p-1 rounded-lg bg-indigo-600 w-7 h-7 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <ShieldCheck className="w-4 h-4 text-white fill-current hidden" />
             </div>
-            <span className="text-[10px] font-mono font-black tracking-[0.2em] text-white">M.EDUC</span>
+            <span className="text-[10px] font-mono font-black tracking-[0.2em] text-white">M.EDUCATION</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -332,8 +334,9 @@ export default function App() {
         <aside className="w-20 bg-slate-950/80 border-r border-slate-900/80 flex flex-col justify-between items-center py-6 shrink-0 z-20 relative backdrop-blur-md">
           <div className="flex flex-col items-center gap-8">
             {/* Minimal brand icon */}
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md">
-              <ShieldCheck className="w-5 h-5 text-white" />
+            <div className="p-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md w-11 h-11 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <ShieldCheck className="w-5 h-5 text-white hidden" />
             </div>
 
             {/* Vertical Rail Indicators */}
@@ -442,7 +445,7 @@ export default function App() {
           {/* Footer for tablet space */}
           <footer className="mt-8 pt-4 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono text-slate-500">
             <p>TABLET VIEW • LOCAL STUDY WORKSPACE</p>
-            <span className="text-indigo-400">MOODERIA EDUC</span>
+            <span className="text-indigo-400">MOODERIA EDUCATION</span>
           </footer>
         </section>
       </div>
@@ -471,8 +474,8 @@ export default function App() {
           <span className="text-[10px] font-mono tracking-[0.3em] text-indigo-400 uppercase mb-1 font-semibold">
             Academic System v4.02
           </span>
-          <h1 className="text-5xl lg:text-8xl font-black tracking-tighter leading-none text-white select-none relative">
-            MOODERIA<span className="text-indigo-500 font-extrabold">.</span>EDUC
+          <h1 className="text-5xl lg:text-7xl font-black tracking-tighter leading-none text-white select-none relative">
+            MOODERIA <span className="text-indigo-500 font-extrabold">EDUCATION</span>
             <span className="absolute -bottom-1 left-0 w-24 h-[4px] bg-gradient-to-r from-indigo-500 to-purple-500" />
           </h1>
         </div>

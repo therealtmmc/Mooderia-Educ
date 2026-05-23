@@ -70,11 +70,12 @@ export default function SignInView({ onSignInComplete }: SignInViewProps) {
 
         {/* Brand identity header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center shadow-lg">
-            <GraduationCap className="w-8 h-8" />
+          <div className="mx-auto w-14 h-14 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center shadow-lg p-2 overflow-hidden">
+            <img src="/logo.png" alt="Mooderia Education Logo" className="w-full h-full object-contain filter invert opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            <GraduationCap className="w-8 h-8 hidden" />
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-white uppercase">
-            MOODERIA<span className="text-indigo-500">.</span>EDUC
+          <h1 className="text-3xl font-black tracking-tight text-white uppercase mt-2">
+            MOODERIA <span className="text-indigo-500">EDUCATION</span>
           </h1>
           <p className="text-xs font-mono text-slate-400 uppercase tracking-widest">
             Academic Portfolio &amp; Recall Engine
@@ -84,7 +85,7 @@ export default function SignInView({ onSignInComplete }: SignInViewProps) {
         {/* Introduction Note */}
         <div className="bg-slate-950/60 p-4 border border-slate-850 rounded-2xl text-xs text-slate-400 space-y-1">
           <p className="font-semibold text-white uppercase font-mono">🔑 SECURE CLIENT SIGN-IN</p>
-          <p>Please authorize this workstation of Mooderia Educ, verifying your profile coordinates. All configurations persist offline in your personal web dashboard.</p>
+          <p>Please authorize this workstation of Mooderia Education, verifying your profile coordinates. All configurations persist offline in your personal web dashboard.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
