@@ -251,9 +251,9 @@ export default function App() {
   // -------------------------------------------------------------
   if (deviceType === 'phone') {
     return (
-      <div className="min-h-screen bg-[#030712] text-slate-150 flex flex-col relative selection:bg-indigo-600/30 select-none pb-28 pt-18">
+      <div className="min-h-screen bg-[#030712] text-slate-150 flex flex-col relative selection:bg-indigo-600/30 select-none pb-28 pt-24">
         {/* Phone minimal HUD tray bar */}
-        <header className="fixed top-0 left-0 right-0 h-14 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 px-4 py-2 flex items-center justify-between z-30">
+        <header className="fixed top-0 left-0 right-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 px-4 pb-2 pt-[max(env(safe-area-inset-top),2.5rem)] flex items-center justify-between z-30">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-indigo-600 w-7 h-7 flex items-center justify-center overflow-hidden">
               <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
@@ -281,15 +281,6 @@ export default function App() {
             </div>
           </div>
         </header>
-
-        {/* Small floating HUD helper telling the form factor */}
-        <div className="mx-4 mt-2 mb-4 bg-slate-900/50 p-2.5 rounded-xl border border-slate-900 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[9px] font-mono text-slate-400">
-            <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
-            <span>PHONE DESIGN PARADIGM</span>
-          </div>
-          <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">{profile.name.split(" ")[0]}</span>
-        </div>
 
         {/* Main core content area */}
         <main className="flex-1 px-4 relative z-10">
@@ -357,7 +348,7 @@ export default function App() {
         }}
       >
         {/* Left Side Icon Rail Navigation */}
-        <aside className="w-20 bg-slate-950/80 border-r border-slate-900/80 flex flex-col justify-between items-center py-6 shrink-0 z-20 relative backdrop-blur-md">
+        <aside className="w-20 bg-slate-950/80 border-r border-slate-900/80 flex flex-col justify-between items-center pb-6 pt-[max(env(safe-area-inset-top),1.5rem)] shrink-0 z-20 relative backdrop-blur-md">
           <div className="flex flex-col items-center gap-8">
             {/* Minimal brand icon */}
             <div className="p-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md w-11 h-11 flex items-center justify-center overflow-hidden">
@@ -423,7 +414,7 @@ export default function App() {
         </aside>
 
         {/* Workspace body window */}
-        <section className="flex-1 min-w-0 flex flex-col justify-between overflow-y-auto h-screen p-6 relative">
+        <section className="flex-1 min-w-0 flex flex-col justify-between overflow-y-auto h-screen p-6 pt-[max(env(safe-area-inset-top),1.5rem)] relative">
           
           {/* Breadcrumb style top bar header for Tablet */}
           <header className="flex justify-between items-center mb-8 border-b border-slate-900 pb-4">
