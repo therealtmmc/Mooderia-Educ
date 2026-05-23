@@ -9,6 +9,7 @@ import QuizzesView from "./components/QuizzesView";
 import ProfileView from "./components/ProfileView";
 import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
+import DesktopRestrictionView from "./components/DesktopRestrictionView";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
 } from "lucide-react";
@@ -56,7 +57,15 @@ export default function App() {
   });
 
   // DYNAMIC DEVICE LAYOUT STATE ENGINE (Phone vs Tablet vs Laptop)
-  const [deviceType, setDeviceType] = useState<'phone' | 'tablet' | 'laptop'>('laptop');
+  const [deviceType, setDeviceType] = useState<'phone' | 'tablet' | 'laptop'>(() => {
+    if (typeof window !== 'undefined') {
+      const width = window.innerWidth;
+      if (width < 768) return 'phone';
+      if (width < 1024) return 'tablet';
+      return 'laptop';
+    }
+    return 'laptop';
+  });
 
   useEffect(() => {
     const handleResize = () => {
@@ -122,6 +131,11 @@ export default function App() {
   const getCurrentGradientCss = () => {
     return `bg-gradient-to-br ${profile.avatarGradientStart || "from-indigo-600"} ${profile.avatarGradientEnd || "to-fuchsia-600"}`;
   };
+
+  // DESKTOP RESTRICTION
+  if (deviceType === 'laptop') {
+    return <DesktopRestrictionView />;
+  }
 
   // SPLASH SCREEN CORE RENDER
   if (showSplash) {
