@@ -39,6 +39,16 @@ export default function App() {
   // NAV SCREEN CONTROL
   const [activeTab, setActiveTab] = useState<'folders' | 'quizzes' | 'profile' | 'analytics'>('folders');
   
+  // SPLASH LOADING INTRO SCREEN
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, []);
+
   // SOUND TOGGLER
   const [soundOn, setSoundOn] = useState(() => {
     const saved = localStorage.getItem("mooderia_sound_on");
@@ -112,6 +122,85 @@ export default function App() {
   const getCurrentGradientCss = () => {
     return `bg-gradient-to-br ${profile.avatarGradientStart || "from-indigo-600"} ${profile.avatarGradientEnd || "to-fuchsia-600"}`;
   };
+
+  // SPLASH SCREEN CORE RENDER
+  if (showSplash) {
+    return (
+      <div className="fixed inset-0 bg-[#020512] flex flex-col items-center justify-center overflow-hidden z-[99999] select-none text-slate-100">
+        {/* Glow ambient radial atmosphere */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,rgba(0,0,0,0)_70%)] pointer-events-none" />
+        
+        {/* Fine background Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#090d22_1px,transparent_1px),linear-gradient(to_bottom,#090d22_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40" />
+
+        <div className="relative z-10 text-center space-y-8 max-w-sm px-6">
+          {/* Pulsing Core Icon Logo with visual animations */}
+          <motion.div
+            initial={{ scale: 0.75, opacity: 0 }}
+            animate={{ scale: [0.75, 1.08, 1], opacity: 1 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+            className="relative w-20 h-20 mx-auto"
+          >
+            {/* Ambient neon blurring */}
+            <div className="absolute inset-0 rounded-2xl bg-indigo-500/20 blur-xl animate-pulse" />
+            
+            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-950 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-950/50">
+              <Sparkles className="w-9 h-9 text-indigo-400 animate-pulse" />
+            </div>
+          </motion.div>
+
+          {/* Typography headers */}
+          <div className="space-y-3">
+            <motion.h1
+              initial={{ opacity: 0, letterSpacing: "0.1em", y: 4 }}
+              animate={{ opacity: 1, letterSpacing: "0.22em", y: 0 }}
+              transition={{ duration: 1.6, ease: "easeOut" }}
+              className="text-2xl md:text-3xl font-display font-black text-white uppercase tracking-[0.22em] leading-none text-center"
+            >
+              Mooderia
+            </motion.h1>
+
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.4, duration: 1.2, ease: "easeInOut" }}
+              className="h-[1px] w-32 bg-gradient-to-r from-transparent via-indigo-505/50 to-transparent mx-auto"
+            />
+
+            <motion.h2
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 1.0 }}
+              className="text-[11px] font-mono uppercase tracking-[0.4em] text-indigo-400 font-bold"
+            >
+              Education
+            </motion.h2>
+          </div>
+
+          {/* Soft loading progress status bar */}
+          <div className="space-y-2.5 pt-4">
+            <div className="h-1 w-40 bg-slate-950 rounded-full mx-auto overflow-hidden border border-slate-900 relative">
+              <motion.div
+                initial={{ left: "-100%" }}
+                animate={{ left: "100%" }}
+                transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+                className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-400 to-transparent"
+              />
+            </div>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.4, 0.8, 0.4] }}
+              transition={{ repeat: Infinity, duration: 2.0 }}
+              className="text-[9px] font-mono uppercase tracking-widest text-slate-500"
+            >
+              Booting educational protocols...
+            </motion.p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Check if student identity has authorized/signed in offline
   if (!profile.signedIn) {
