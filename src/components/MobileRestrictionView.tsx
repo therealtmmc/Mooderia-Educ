@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Download, FolderOpen, Mic, Brain, Sparkles, ShieldCheck } from 'lucide-react';
+import { Download, FolderOpen, Layers, Brain, PieChart, ShieldCheck } from 'lucide-react';
 
-export default function DesktopRestrictionView() {
+export default function MobileRestrictionView() {
   return (
     <div className="min-h-screen bg-[#F8F9FC] flex items-center justify-center p-8 text-slate-900 font-sans select-none">
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -27,7 +27,7 @@ export default function DesktopRestrictionView() {
             >
               Mooderia <span className="text-violet-600">Education</span>
               <br/>
-              <span className="text-3xl lg:text-4xl text-slate-400 font-bold tracking-normal leading-[1.2] block mt-2">is Mobile Exclusive.</span>
+              <span className="text-3xl lg:text-4xl text-slate-400 font-bold tracking-normal leading-[1.2] block mt-2">Get the Android App.</span>
             </motion.h1>
             
             <motion.p 
@@ -36,7 +36,7 @@ export default function DesktopRestrictionView() {
               transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
               className="text-xl text-slate-600 max-w-lg leading-relaxed font-medium"
             >
-              To provide the most immersive and focused learning environment, Mooderia Education is exclusively designed for phones and tablets.
+              For the best immersive and focused learning environment on mobile devices, please download our dedicated Android application.
             </motion.p>
           </div>
 
@@ -71,40 +71,40 @@ export default function DesktopRestrictionView() {
               <FolderOpen className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Academic Organizer</h3>
-              <p className="text-slate-500 leading-relaxed font-medium">Structure your coursework flawlessly with premium folder hierarchies and seamless resource management directly on your mobile device.</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Subject Organization</h3>
+              <p className="text-slate-500 leading-relaxed font-medium">Structure your coursework flawlessly with custom folder hierarchies and seamless resource management directly on your mobile device.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-5">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-5 hover:shadow-md transition-shadow">
               <div className="p-4 bg-violet-50 text-violet-600 rounded-2xl w-fit">
-                <Mic className="w-8 h-8" />
+                <Layers className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Lecture Capture</h3>
-                <p className="text-sm text-slate-500 font-medium">Record and review voice memos directly inside your subjects.</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Flashcards &amp; Notes</h3>
+                <p className="text-sm text-slate-500 font-medium">Create rich text documents and custom study decks on the go.</p>
               </div>
             </div>
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-5 hover:shadow-md transition-shadow">
               <div className="p-4 bg-violet-50 text-violet-600 rounded-2xl w-fit">
-                <Brain className="w-8 h-8" />
+                <PieChart className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Smart Recall</h3>
-                <p className="text-sm text-slate-500 font-medium">Interactive spaced-repetition quizzes optimize your memory.</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Performance Analytics</h3>
+                <p className="text-sm text-slate-500 font-medium">Track your study time and retention statistics locally.</p>
               </div>
             </div>
           </div>
 
           <div className="bg-violet-600 text-white p-8 rounded-3xl shadow-xl shadow-violet-600/20 flex gap-6 items-center hover:shadow-2xl hover:shadow-violet-600/30 transition-shadow">
             <div className="p-4 bg-white/20 text-white rounded-2xl shrink-0 backdrop-blur-sm">
-              <Sparkles className="w-8 h-8" />
+              <Brain className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-2">AI Flashcard Generator</h3>
-              <p className="text-violet-100 font-medium">Automatically build study decks from your notes. Let AI test your knowledge in real-time.</p>
+              <h3 className="text-xl font-bold mb-2">Academic Recall Engine</h3>
+              <p className="text-violet-100 font-medium">Maximize retention through interactive study sessions across all your local workspaces.</p>
             </div>
           </div>
         </motion.div>

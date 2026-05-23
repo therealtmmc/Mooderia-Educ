@@ -9,7 +9,7 @@ import QuizzesView from "./components/QuizzesView";
 import ProfileView from "./components/ProfileView";
 import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
-import DesktopRestrictionView from "./components/DesktopRestrictionView";
+import MobileRestrictionView from "./components/MobileRestrictionView";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
 } from "lucide-react";
@@ -132,9 +132,9 @@ export default function App() {
     return `bg-gradient-to-br ${profile.avatarGradientStart || "from-indigo-600"} ${profile.avatarGradientEnd || "to-fuchsia-600"}`;
   };
 
-  // DESKTOP RESTRICTION
-  if (deviceType === 'laptop') {
-    return <DesktopRestrictionView />;
+  // MOBILE RESTRICTION
+  if (deviceType === 'phone' || deviceType === 'tablet') {
+    return <MobileRestrictionView />;
   }
 
   // SPLASH SCREEN CORE RENDER
