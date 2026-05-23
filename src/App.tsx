@@ -67,6 +67,18 @@ export default function App() {
     return 'laptop';
   });
 
+  const [isAppEnv, setIsAppEnv] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    
+    const ua = navigator.userAgent || '';
+    // Detect typical Android WebViews and PWA standalone mode
+    const isWv = /(wv|WebView|Android.*Version\/)/i.test(ua);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const isApkParam = new URLSearchParams(window.location.search).get('app') === 'true';
+    
+    return isWv || isStandalone || isApkParam;
+  });
+
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
@@ -133,7 +145,7 @@ export default function App() {
   };
 
   // MOBILE RESTRICTION
-  if (deviceType === 'phone' || deviceType === 'tablet') {
+  if ((deviceType === 'phone' || deviceType === 'tablet') && !isAppEnv) {
     return <MobileRestrictionView />;
   }
 
