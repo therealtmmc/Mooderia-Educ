@@ -1,0 +1,6 @@
+{
+  "name": "Mooderia Educ",
+  "description": "Premium academic folder organizer, voice memo lecture capture, interactive spaced-repetition quizzes, dynamic AI flashcard deck generator, and personalized student analytics.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
