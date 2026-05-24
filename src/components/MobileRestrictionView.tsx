@@ -1,11 +1,38 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Download, FolderOpen, Layers, Brain, PieChart, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Download, FolderOpen, Layers, Brain, PieChart, ShieldCheck, X, Sparkles } from 'lucide-react';
 
 export default function MobileRestrictionView() {
+  const [activeModal, setActiveModal] = useState<'terms' | 'privacy' | 'creator' | null>(null);
+
+  const renderModalContent = () => {
+    switch (activeModal) {
+      case 'terms':
+        return {
+          title: "Terms and Conditions",
+          content: "Welcome to Mooderia Education.\n\nBy downloading or using the app, these terms will automatically apply to you. You should make sure therefore that you read them carefully before using the app.\n\nYou’re not allowed to copy or modify the app, any part of the app, or our trademarks in any way. You’re not allowed to attempt to extract the source code of the app, and you also shouldn’t try to translate the app into other languages or make derivative versions.\n\nThe app itself, and all the trademarks, copyright, database rights, and other intellectual property rights related to it, still belong to Travis Miguel Cepe."
+        };
+      case 'privacy':
+        return {
+          title: "Privacy Policy",
+          content: "Travis Miguel Cepe built the Mooderia Education app as a free app. This SERVICE is provided by Travis Miguel Cepe at no cost and is intended for use as is.\n\nThis page is used to inform visitors regarding policies with the collection, use, and disclosure of Personal Information if anyone decided to use this Service.\n\nMooderia Education is an offline-capable application designed with user privacy in mind. Most of your data, including notes, folders, and flashcards, is stored locally on your device to ensure privacy."
+        };
+      case 'creator':
+        return {
+          title: "About the Creator",
+          content: "Hello! I'm Travis Miguel Cepe.\n\nI am currently a 1st-year student pursuing a Bachelor of Science in Computer Engineering at MAPÚA UNIVERSITY. \n\nI built Mooderia Education to provide a seamless, highly organized, and immersive learning environment tailored for mobile devices. My passion lies in software development, creating applications that solve real-world problems and enhance academic productivity.\n\nI hope this application helps you in your academic journey!"
+        };
+      default:
+        return null;
+    }
+  };
+
+  const modalData = renderModalContent();
+
   return (
-    <div className="min-h-screen bg-[#F8F9FC] flex items-center justify-center p-8 text-slate-900 font-sans select-none">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+    <div className="min-h-screen bg-[#F8F9FC] flex flex-col items-center justify-between p-8 text-slate-900 font-sans select-none relative overflow-x-hidden">
+      <div className="flex-1 flex items-center justify-center w-full max-w-6xl">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         {/* Left Side: Brand and Download */}
         <div className="space-y-10">
           <div className="space-y-6">
@@ -55,7 +82,10 @@ export default function MobileRestrictionView() {
               <Download className="w-6 h-6" />
               Download APK for Android
             </a>
-            <p className="text-sm font-mono text-slate-400 font-semibold tracking-widest uppercase pl-1">Requires Android 8.0 or higher</p>
+            <div className="flex flex-col gap-1 pl-1">
+              <p className="text-sm font-mono text-slate-500 font-semibold tracking-widest uppercase">Requires Android 8.0 or higher</p>
+              <p className="text-sm font-mono text-violet-500 font-semibold tracking-widest uppercase">✨ Fully Offline Capable</p>
+            </div>
           </motion.div>
         </div>
 
@@ -108,7 +138,55 @@ export default function MobileRestrictionView() {
             </div>
           </div>
         </motion.div>
+        {/* End of grid */}
+        </div>
       </div>
+
+      {/* Footer Links */}
+      <div className="mt-12 flex flex-col items-center justify-center gap-6 w-full max-w-6xl border-t border-slate-200/60 pt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm font-semibold text-slate-400">
+          <button onClick={() => setActiveModal('terms')} className="hover:text-violet-600 transition-colors">Terms &amp; Conditions</button>
+          <button onClick={() => setActiveModal('privacy')} className="hover:text-violet-600 transition-colors">Privacy Policy</button>
+          <button onClick={() => setActiveModal('creator')} className="hover:text-violet-600 transition-colors cursor-pointer flex-shrink-0">
+            About the Creator
+          </button>
+        </div>
+        <div className="text-xs font-semibold text-slate-400 flex items-center justify-center gap-1.5 opacity-80">
+          <Sparkles className="w-4 h-4 text-violet-500" />
+          <span>Created with <span className="text-slate-600 font-bold bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500 bg-clip-text text-transparent">Google AI</span></span>
+        </div>
+      </div>
+
+      {/* Modal Overlay */}
+      <AnimatePresence>
+        {activeModal && modalData && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setActiveModal(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6 shrink-0">
+                <h2 className="text-2xl font-bold text-slate-900">{modalData.title}</h2>
+                <button onClick={() => setActiveModal(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors shrink-0 outline-none">
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              <div className="text-slate-600 space-y-4 leading-relaxed whitespace-pre-wrap font-medium">
+                {modalData.content}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
