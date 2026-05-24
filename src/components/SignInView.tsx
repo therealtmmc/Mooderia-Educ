@@ -84,8 +84,9 @@ export default function SignInView({ onSignInComplete }: SignInViewProps) {
 
         {/* Introduction Note */}
         <div className="bg-slate-950/60 p-4 border border-slate-850 rounded-2xl text-xs text-slate-400 space-y-1">
-          <p className="font-semibold text-white uppercase font-mono">🔑 SECURE CLIENT SIGN-IN</p>
-          <p>Please authorize this workstation of Mooderia Education, verifying your profile coordinates. All configurations persist offline in your personal web dashboard.</p>
+          <p className="font-semibold text-white uppercase font-mono">🔑 SECURE CLIENT SETUP</p>
+          <p className="hidden md:block">Welcome to the Mooderia Education desktop workspace. Your progress will be securely saved locally. Please initialize your profile to begin.</p>
+          <p className="md:hidden">Please authorize this mobile workstation of Mooderia Education by verifying your profile coordinates. All configurations persist offline.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

@@ -9,13 +9,13 @@ export default function MobileRestrictionView() {
     switch (activeModal) {
       case 'terms':
         return {
-          title: "Terms and Conditions",
-          content: "Welcome to Mooderia Education.\n\nBy downloading or using the app, these terms will automatically apply to you. You should make sure therefore that you read them carefully before using the app.\n\nYou’re not allowed to copy or modify the app, any part of the app, or our trademarks in any way. You’re not allowed to attempt to extract the source code of the app, and you also shouldn’t try to translate the app into other languages or make derivative versions.\n\nThe app itself, and all the trademarks, copyright, database rights, and other intellectual property rights related to it, still belong to Travis Miguel Cepe."
+          title: "END USER LICENSE AGREEMENT",
+          content: "Effective Date: May 2026\n\nWelcome to Mooderia Education. By downloading, accessing, or using this application, you agree to be bound by these Terms and Conditions. Please review them carefully before accessing the academic workspace.\n\n1. LICENSE GRANT\nTravis Miguel Cepe grants you a personal, non-exclusive, non-transferable, and revocable license to use the Mooderia Education application strictly in accordance with these terms. You may not modify, attempt to extract source code, reverse engineer, or create derivative works.\n\n2. ACADEMIC INTEGRITY & LIABILITY\nThis platform is provided \"as is\" to facilitate personal study and organization. The software creator holds no liability for data loss, academic performance outturns, or any indirect damages resulting from the use of this service.\n\n3. INTELLECTUAL PROPERTY\nAll branding, database schema, logic flows, and interface designs are the intellectual property of Travis Miguel Cepe."
         };
       case 'privacy':
         return {
-          title: "Privacy Policy",
-          content: "Travis Miguel Cepe built the Mooderia Education app as a free app. This SERVICE is provided by Travis Miguel Cepe at no cost and is intended for use as is.\n\nThis page is used to inform visitors regarding policies with the collection, use, and disclosure of Personal Information if anyone decided to use this Service.\n\nMooderia Education is an offline-capable application designed with user privacy in mind. Most of your data, including notes, folders, and flashcards, is stored locally on your device to ensure privacy."
+          title: "PRIVACY & DATA POLICY",
+          content: "Effective Date: May 2026\n\nMooderia Education operates under a strict \"Privacy-First, Local-First\" paradigm. \n\n1. DATA COLLECTION & STORAGE\nWe do not operate remote servers to collect your personal information. All your academic data, including profiles, flashcards, folders, and statistics, is persisted exclusively in your device's local storage environments (e.g., LocalStorage or IndexedDB) ensuring total privacy.\n\n2. OFFLINE CAPABILITIES\nThe application is designed as a secure, offline-capable Progressive Web Application (PWA) / APK. Once initialized, the app requires zero network telemetry to operate out of the box.\n\n3. NO THIRD-PARTY TRACKING\nWe do not embed third-party analytics trackers, advertising modules, or any background data harvesting services."
         };
       case 'creator':
         return {

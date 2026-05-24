@@ -55,6 +55,7 @@ export interface StudentIdentity {
   university?: string; // name of university
   program?: string; // name of program
   year?: string; // year of study
+  pinCode?: string; // 6-digit PIN for auth
   signedIn?: boolean; // offline-persistent auth status flag
 }
 

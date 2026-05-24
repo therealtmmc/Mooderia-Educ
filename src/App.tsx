@@ -9,6 +9,7 @@ import QuizzesView from "./components/QuizzesView";
 import ProfileView from "./components/ProfileView";
 import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
+import PinLockView from "./components/PinLockView";
 import MobileRestrictionView from "./components/MobileRestrictionView";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
@@ -42,6 +43,9 @@ export default function App() {
   
   // SPLASH LOADING INTRO SCREEN
   const [showSplash, setShowSplash] = useState(true);
+
+  // SECURITY PIN LOCK
+  const [hasPassedPin, setHasPassedPin] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -242,6 +246,23 @@ export default function App() {
           localStorage.setItem("mooderia_quizzes", JSON.stringify([]));
           localStorage.setItem("mooderia_attempts", JSON.stringify([]));
         }} 
+      />
+    );
+  }
+
+  // SECURITY PIN BARRIER POST SIGN-IN
+  if (!hasPassedPin) {
+    return (
+      <PinLockView 
+        isSetupMode={!profile.pinCode}
+        expectedPin={profile.pinCode}
+        studentName={profile.name}
+        onSuccess={(newPin) => {
+          if (newPin && !profile.pinCode) {
+            setProfile(prev => ({ ...prev, pinCode: newPin }));
+          }
+          setHasPassedPin(true);
+        }}
       />
     );
   }
