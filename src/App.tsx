@@ -11,6 +11,7 @@ import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
 import PinLockView from "./components/PinLockView";
 import MobileRestrictionView from "./components/MobileRestrictionView";
+import DesktopLandingView from "./components/DesktopLandingView";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
 } from "lucide-react";
@@ -44,6 +45,12 @@ export default function App() {
   // SPLASH LOADING INTRO SCREEN
   const [showSplash, setShowSplash] = useState(true);
 
+  // DESKTOP LANDING SCREEN STATE
+  const [hasPassedDesktopLanding, setPassedDesktopLanding] = useState(() => {
+    const saved = localStorage.getItem("mooderia_desktop_landing_passed");
+    return saved === "true";
+  });
+
   // SECURITY PIN LOCK
   const [hasPassedPin, setHasPassedPin] = useState(false);
 
@@ -69,6 +76,12 @@ export default function App() {
       return 'laptop';
     }
     return 'laptop';
+  });
+
+  const [isMobileOS, setIsMobileOS] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    return /android|ipad|iphone|ipod/i.test(ua);
   });
 
   const [isAppEnv, setIsAppEnv] = useState(() => {
@@ -149,8 +162,16 @@ export default function App() {
   };
 
   // MOBILE RESTRICTION
-  if ((deviceType === 'phone' || deviceType === 'tablet') && !isAppEnv) {
+  if (isMobileOS && !isAppEnv) {
     return <MobileRestrictionView />;
+  }
+
+  // DESKTOP LANDING
+  if (!isMobileOS && !hasPassedDesktopLanding && !profile.signedIn) {
+    return <DesktopLandingView onStartLearning={() => {
+      localStorage.setItem("mooderia_desktop_landing_passed", "true");
+      setPassedDesktopLanding(true);
+    }} />;
   }
 
   // SPLASH SCREEN CORE RENDER

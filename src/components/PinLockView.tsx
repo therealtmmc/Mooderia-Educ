@@ -23,6 +23,7 @@ export default function PinLockView({ isSetupMode, onSuccess, expectedPin, stude
         if (step === "enter") {
           setTimeout(() => {
             setStep("confirm");
+            setConfirmPin(pin);
             setPin("");
           }, 300);
         } else {
