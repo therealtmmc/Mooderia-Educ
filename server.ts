@@ -104,6 +104,89 @@ async function startServer() {
     }
   });
 
+  // AI Copilot Route for controlling the app
+  app.post("/api/copilot", async (req, res) => {
+    try {
+      const { messages, appState } = req.body;
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Messages array is required." });
+      }
+
+      const ai = getGeminiClient();
+
+      const tools = [{
+        functionDeclarations: [
+          {
+            name: "navigate",
+            description: "Navigate to a specific tab in the app.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: { 
+                tab: { type: Type.STRING, description: "Must be one of: 'folders', 'quizzes', 'profile', 'analytics'" } 
+              },
+              required: ["tab"]
+            }
+          },
+          {
+            name: "toggleSound",
+            description: "Turn the app sound effects on or off.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: { 
+                enabled: { type: Type.BOOLEAN, description: "True to enable sound, false to mute." } 
+              },
+              required: ["enabled"]
+            }
+          },
+          {
+            name: "createFolder",
+            description: "Create a new workspace folder for the user.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: { 
+                name: { type: Type.STRING, description: "Name of the folder." },
+                description: { type: Type.STRING, description: "Short description of the folder." }
+              },
+              required: ["name"]
+            }
+          }
+        ]
+      }];
+
+      const formattedContents = messages.map((m: any) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+
+      const stateContextText = `You are Mooderia AI Copilot. You assist the student by controlling the app, navigating, or just answering academic questions. 
+Current App State context:
+- Active Tab: ${appState?.activeTab}
+- Sound Enabled: ${appState?.soundOn}
+- Existing Folders: ${appState?.folders?.map((f:any) => f.name).join(", ") || 'None'}
+
+If the user asks to change tabs, mute/unmute, or create a folder, use the provided tools. If the tools complete the action, you can also add a friendly text response acknowledging it.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: formattedContents,
+        config: {
+          systemInstruction: stateContextText,
+          tools: tools as any
+        }
+      });
+
+      res.json({ 
+        text: response.text, 
+        functionCalls: response.functionCalls || [] 
+      });
+    } catch (error: any) {
+      console.error("Copilot AI Error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to process AI copilot request.",
+      });
+    }
+  });
+
   // Serve static application in production, bind Vite dev middleware in development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

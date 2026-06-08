@@ -12,6 +12,7 @@ import SignInView from "./components/SignInView";
 import PinLockView from "./components/PinLockView";
 import MobileRestrictionView from "./components/MobileRestrictionView";
 import DesktopLandingView from "./components/DesktopLandingView";
+import AiCopilot from "./components/AiCopilot";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
 } from "lucide-react";
@@ -154,6 +155,33 @@ export default function App() {
 
   const handleMaterialAdded = () => {
     // Optional refresh trigger callbacks
+  };
+
+  const handleCreateFolder = (name: string, description: string) => {
+    setFolders(prev => [{
+      id: Date.now().toString(),
+      name,
+      description,
+      createdAt: new Date().toISOString(),
+      materialsCount: 0,
+      materials: []
+    }, ...prev]);
+  };
+
+  const aiCopilotProps = {
+    appState: {
+      activeTab,
+      soundOn,
+      folders
+    },
+    onNavigate: handleTabChange,
+    onToggleSound: (enabled: boolean) => {
+       if (soundOn !== enabled) {
+         setSoundOn(enabled);
+         if (enabled) setTimeout(() => sound.playTick(), 80);
+       }
+    },
+    onCreateFolder: handleCreateFolder
   };
 
   // Find css matches for current avatar backdrops
@@ -374,6 +402,7 @@ export default function App() {
             );
           })}
         </nav>
+        <AiCopilot {...aiCopilotProps} />
       </div>
     );
   }
@@ -507,6 +536,7 @@ export default function App() {
             <span className="text-indigo-400">MOODERIA EDUCATION</span>
           </footer>
         </section>
+        <AiCopilot {...aiCopilotProps} />
       </div>
     );
   }
@@ -652,6 +682,7 @@ export default function App() {
           <span className="text-emerald-450 font-bold">OFFLINE ACCESSIBLE</span>
         </div>
       </footer>
+      <AiCopilot {...aiCopilotProps} />
     </div>
   );
 }
