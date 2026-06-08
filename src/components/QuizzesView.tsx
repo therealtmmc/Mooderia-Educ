@@ -335,18 +335,23 @@ export default function QuizzesView({ quizzes, setQuizzes, folders, onQuizAttemp
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {quizzes.map(quiz => {
-                  const strengthSum = quiz.cards.reduce((sum, card) => sum + card.strength, 0);
-                  const totalStrs = quiz.cards.length * 5;
-                  const ratio = totalStrs > 0 ? (strengthSum / totalStrs) * 100 : 0;
+                <AnimatePresence mode="popLayout">
+                  {quizzes.map(quiz => {
+                    const strengthSum = quiz.cards.reduce((sum, card) => sum + card.strength, 0);
+                    const totalStrs = quiz.cards.length * 5;
+                    const ratio = totalStrs > 0 ? (strengthSum / totalStrs) * 100 : 0;
 
-                  return (
-                    <motion.div
-                      key={quiz.id}
-                      whileHover={{ y: -4, scale: 1.01 }}
-                      onClick={() => handleLaunchQuiz(quiz)}
-                      className="bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-slate-800 hover:border-indigo-500/30 rounded-3xl p-6 relative cursor-pointer group flex flex-col justify-between shadow-xl min-h-[240px] overflow-hidden"
-                    >
+                    return (
+                      <motion.div
+                        key={quiz.id}
+                        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -15, transition: { duration: 0.18 } }}
+                        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                        whileHover={{ y: -4, scale: 1.01 }}
+                        onClick={() => handleLaunchQuiz(quiz)}
+                        className="bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-slate-800 hover:border-indigo-500/30 rounded-3xl p-6 relative cursor-pointer group flex flex-col justify-between shadow-xl min-h-[240px] overflow-hidden"
+                      >
                       <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-550/10 rounded-full blur-2xl pointer-events-none" />
 
                       <div className="space-y-3">
@@ -403,6 +408,7 @@ export default function QuizzesView({ quizzes, setQuizzes, folders, onQuizAttemp
                     </motion.div>
                   );
                 })}
+                </AnimatePresence>
               </div>
             )}
           </motion.div>
@@ -848,67 +854,102 @@ export default function QuizzesView({ quizzes, setQuizzes, folders, onQuizAttemp
                   )}
                 </div>
               </div>
-            ) : (
-              /* DECK STUDY SESSION FINISHED SCOREBOARD SCREEN */
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="max-w-md mx-auto bg-slate-900 border border-slate-800 p-6 rounded-3xl text-center space-y-6 shadow-xl"
-              >
-                <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto">
-                  <Trophy className="w-8 h-8" />
-                </div>
+            ) : (() => {
+                const accuracyPct = selectedDeck && selectedDeck.cards.length > 0 
+                  ? Math.round((scoreCount / selectedDeck.cards.length) * 100) 
+                  : 0;
 
-                <div>
-                  <h3 className="text-xl font-display font-black text-white uppercase tracking-wider">
-                    Recalls Complete
-                  </h3>
-                  <p className="text-xs font-mono text-slate-400 mt-1">
-                    Study log metrics filed accurately to academic history.
-                  </p>
-                </div>
+                const getGradeDetails = (pct: number) => {
+                  if (pct >= 95) return { grade: "A+", label: "Outstanding Master", color: "text-amber-400 border-amber-500/20 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.25)]", feedback: "Absolutely flawless recall! Educational metrics verified at maximum peak load!" };
+                  if (pct >= 90) return { grade: "A", label: "Excellent Skill", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10", feedback: "Stellar performance. You've indexed this material with extreme precision." };
+                  if (pct >= 80) return { grade: "B", label: "Proficient Recall", color: "text-blue-400 border-blue-500/20 bg-blue-500/10", feedback: "Capable retrieval verified. Just a few optimization nodes remains." };
+                  if (pct >= 70) return { grade: "C", label: "Satisfactory Effort", color: "text-yellow-400 border-yellow-500/20 bg-yellow-500/10", feedback: "Passed, but neural memory pathways require further active reinforcement." };
+                  if (pct >= 60) return { grade: "D", label: "Needs Practice", color: "text-orange-400 border-orange-500/20 bg-orange-500/10", feedback: "Developing recall capacity. Standard parameters require duplicate review." };
+                  return { grade: "F", label: "Needs Review", color: "text-rose-450 border-rose-500/20 bg-rose-500/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]", feedback: "Recall depth critical. Launch another subject drill immediately to calibrate memory!" };
+                };
 
-                {/* STATS MATRIX BOX */}
-                <div className="grid grid-cols-3 gap-3 bg-slate-950 p-3.5 border border-slate-850 rounded-xl">
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] uppercase font-mono text-slate-500 block">Accuracy</span>
-                    <span className="text-sm font-mono font-bold text-white">
-                      {Math.ceil((scoreCount / selectedDeck.cards.length) * 100)}%
-                    </span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] uppercase font-mono text-slate-500 block">Recall Hits</span>
-                    <span className="text-sm font-mono font-bold text-emerald-400">
-                      {scoreCount} / {selectedDeck.cards.length}
-                    </span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] uppercase font-mono text-slate-500 block">Elapsed Clock</span>
-                    <span className="text-sm font-mono font-bold text-indigo-400">
-                      {secondsElapsed}s
-                    </span>
-                  </div>
-                </div>
+                const gradeDetails = getGradeDetails(accuracyPct);
 
-                {/* CONTROLS */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button
-                    onClick={() => { handlePop(); setActiveScreen('list'); setSelectedDeck(null); }}
-                    className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-350 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                return (
+                  /* DECK STUDY SESSION FINISHED SCOREBOARD SCREEN WITH REINFORCED GRADING SYSTEM */
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-md mx-auto bg-slate-900 border border-slate-800 p-6 rounded-3xl text-center space-y-6 shadow-xl relative overflow-hidden"
                   >
-                    Cabinets View
-                  </button>
+                    {/* Atmospheric neon light */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
-                  <button
-                    onClick={() => handleLaunchQuiz(selectedDeck)}
-                    className="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-display rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer border-t border-white/10"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Run Drill Again</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
+                    <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto">
+                      <Trophy className="w-8 h-8" />
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-display font-black text-white uppercase tracking-wider">
+                        Recalls Complete
+                      </h3>
+                      <p className="text-xs font-mono text-slate-400 mt-1">
+                        Study log metrics filed accurately to academic history.
+                      </p>
+                    </div>
+
+                    {/* GRADING COMPONENT BADGE */}
+                    <div className="py-4 px-6 bg-slate-950/80 border border-slate-850 rounded-2xl flex flex-col items-center justify-center space-y-2 relative">
+                      <div className="text-[10px] uppercase font-mono tracking-[0.2em] text-slate-500 font-bold">EVALUATION GRADE</div>
+                      <motion.div 
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 15 }}
+                        className={`text-5xl font-black font-display px-6 py-2 rounded-2xl border ${gradeDetails.color} select-none`}
+                      >
+                        {gradeDetails.grade}
+                      </motion.div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-300 font-sans">{gradeDetails.label}</div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-sans max-w-xs">{gradeDetails.feedback}</p>
+                    </div>
+
+                    {/* STATS MATRIX BOX */}
+                    <div className="grid grid-cols-3 gap-3 bg-slate-950 p-3.5 border border-slate-850 rounded-xl">
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] uppercase font-mono text-slate-500 block">Accuracy</span>
+                        <span className="text-sm font-mono font-bold text-white">
+                          {accuracyPct}%
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] uppercase font-mono text-slate-500 block">Recall Hits</span>
+                        <span className="text-sm font-mono font-bold text-emerald-400">
+                          {scoreCount} / {selectedDeck?.cards?.length || 0}
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] uppercase font-mono text-slate-500 block">Elapsed Clock</span>
+                        <span className="text-sm font-mono font-bold text-indigo-400">
+                          {secondsElapsed}s
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CONTROLS */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button
+                        onClick={() => { handlePop(); setActiveScreen('list'); setSelectedDeck(null); }}
+                        className="py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-350 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                      >
+                        Cabinets View
+                      </button>
+
+                      <button
+                        onClick={() => handleLaunchQuiz(selectedDeck!)}
+                        className="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-display rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer border-t border-white/10"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Run Drill Again</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })()}
           </motion.div>
         )}
       </AnimatePresence>

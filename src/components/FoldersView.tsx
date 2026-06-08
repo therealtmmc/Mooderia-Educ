@@ -624,15 +624,20 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {folders.map(folder => {
-                  const palette = getColorClasses(folder.color);
-                  return (
-                    <motion.div
-                      key={folder.id}
-                      whileHover={{ y: -4, scale: 1.01 }}
-                      onClick={() => { handlePop(); setSelectedFolder(folder); }}
-                      className="bg-slate-900 border border-slate-800 p-5 rounded-3xl hover:border-indigo-500/50 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[230px]"
-                    >
+                <AnimatePresence mode="popLayout">
+                  {folders.map(folder => {
+                    const palette = getColorClasses(folder.color);
+                    return (
+                      <motion.div
+                        key={folder.id}
+                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -30, scale: 0.95, transition: { duration: 0.18 } }}
+                        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                        whileHover={{ y: -4, scale: 1.01 }}
+                        onClick={() => { handlePop(); setSelectedFolder(folder); }}
+                        className="bg-slate-900 border border-slate-800 p-5 rounded-3xl hover:border-indigo-500/50 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[230px]"
+                      >
                       {/* Glow top color code */}
                       <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${palette.value === 'violet' ? 'from-violet-500 to-indigo-500' : palette.value === 'emerald' ? 'from-emerald-500 to-teal-500' : palette.value === 'rose' ? 'from-rose-500 to-pink-500' : palette.value === 'cyan' ? 'from-cyan-500 to-sky-500' : palette.value === 'orange' ? 'from-orange-500 to-amber-500' : 'from-fuchsia-500 to-purple-500'}`} />
 
@@ -678,6 +683,7 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
                     </motion.div>
                   );
                 })}
+                </AnimatePresence>
               </div>
             )}
           </motion.div>
@@ -1095,14 +1101,19 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {currentlyOpenedFolder.materials.map(mat => {
-                    const isVoicePlaying = playingMaterial === mat.id;
-                    return (
-                      <motion.div
-                        key={mat.id}
-                        layout
-                        className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-750 transition-all rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                      >
+                  <AnimatePresence mode="popLayout">
+                    {currentlyOpenedFolder.materials.map(mat => {
+                      const isVoicePlaying = playingMaterial === mat.id;
+                      return (
+                        <motion.div
+                          key={mat.id}
+                          layout
+                          initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -15, scale: 0.98, transition: { duration: 0.15 } }}
+                          transition={{ duration: 0.22 }}
+                          className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-750 transition-all rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
                         <div className="flex items-start gap-3.5">
                           {/* File type icon representation */}
                           <div className={`p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center ${
@@ -1217,7 +1228,8 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
                       </motion.div>
                     );
                   })}
-                </div>
+                </AnimatePresence>
+              </div>
               )}
             </div>
           </motion.div>

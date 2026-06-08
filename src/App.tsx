@@ -55,6 +55,22 @@ export default function App() {
   // SECURITY PIN LOCK
   const [hasPassedPin, setHasPassedPin] = useState(false);
 
+  // ONLINE/OFFLINE DETECT ENGINE
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
@@ -333,6 +349,13 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Dynamic Status Indicator */}
+            <span className={`px-1.5 py-0.5 text-[8px] font-mono border rounded uppercase flex items-center gap-1 ${
+              isOnline ? "bg-emerald-950/80 text-emerald-400 border-emerald-900/40" : "bg-amber-950/80 text-amber-400 border-amber-900/40 animate-pulse"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-amber-500"}`} />
+              <span>{isOnline ? "Online" : "Offline"}</span>
+            </span>
             {/* Quick indicators */}
             <span className="px-1.5 py-0.5 text-[8px] font-mono bg-indigo-950/80 text-indigo-400 border border-indigo-900/40 rounded uppercase">
               Pocket HUD
@@ -498,9 +521,17 @@ export default function App() {
               </h2>
             </div>
             
-            <div className="text-right text-xs bg-slate-950 px-3 py-1.5 border border-slate-900 rounded-xl">
-              <span className="text-slate-500 font-mono">USER / </span>
-              <span className="text-indigo-400 font-bold uppercase tracking-tight">{profile.name}</span>
+            <div className="flex items-center gap-2">
+              <div className={`px-3 py-1.5 text-xs font-mono border rounded-xl flex items-center gap-2 ${
+                isOnline ? "bg-emerald-950/50 text-emerald-400 border-emerald-900/30" : "bg-amber-950/50 text-amber-400 border-amber-900/30 animate-pulse"
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-amber-500"}`} />
+                <span className="font-bold text-[10px] tracking-wider uppercase">{isOnline ? "Online Status" : "Offline Local"}</span>
+              </div>
+              <div className="text-right text-xs bg-slate-950 px-3 py-1.5 border border-slate-900 rounded-xl">
+                <span className="text-slate-500 font-mono">USER / </span>
+                <span className="text-indigo-400 font-bold uppercase tracking-tight">{profile.name}</span>
+              </div>
             </div>
           </header>
 
@@ -552,9 +583,17 @@ export default function App() {
       }}
     >
       {/* LAPTOP FORM FACTOR HUD TRAY INDICATOR */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-indigo-950/40 border border-indigo-900/20 text-indigo-400 font-mono text-[9px] uppercase tracking-widest rounded-full flex items-center gap-1.5 z-20 shadow-md">
-        <Laptop className="w-3.5 h-3.5" />
-        <span>LAPTOP WORKSPACE MODE ACTIVE</span>
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+        <div className="px-3 py-1 bg-indigo-950/40 border border-indigo-900/20 text-indigo-400 font-mono text-[9px] uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-md">
+          <Laptop className="w-3.5 h-3.5" />
+          <span>LAPTOP WORKSPACE MODE ACTIVE</span>
+        </div>
+        <div className={`px-3 py-1 border font-mono text-[9px] uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-md ${
+          isOnline ? "bg-emerald-950/60 text-emerald-400 border-emerald-900/30" : "bg-amber-950/60 text-amber-400 border-amber-900/30"
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-amber-500"} animate-pulse`} />
+          <span>{isOnline ? "Online Sync Active" : "Local Offline Core"}</span>
+        </div>
       </div>
 
       {/* HEADER CONTROLS (Laptop/Desktop Heavy weight) */}
@@ -677,9 +716,17 @@ export default function App() {
       {/* FOOTER CONTROLS DESKTOP */}
       <footer className="w-full max-w-7xl mx-auto border-t border-slate-900 pt-8 mt-12 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[10px] font-mono text-slate-500 relative z-10 bottom-0 pb-8 uppercase">
         <p>© 2026 MOODERIA EDUC. LOCALSTORAGE METRICS SECURITY CABINET.</p>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-emerald-450 font-bold">OFFLINE ACCESSIBLE</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-900/40 border border-slate-800 px-3 py-1 rounded-full text-slate-400 text-[9px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+            <span className="font-bold">LOCAL FIRST STORAGE</span>
+          </div>
+          <div className={`flex items-center gap-2 px-3 py-1 border rounded-full text-[9px] ${
+            isOnline ? "bg-emerald-950/40 text-emerald-400 border-emerald-850" : "bg-amber-950/40 text-amber-450 border-amber-850"
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-amber-500"} ${!isOnline && "animate-pulse"}`} />
+            <span className="font-bold">{isOnline ? "ONLINE CONNECTIONS WORK" : "OFFLINE WORKSPACE SECURED"}</span>
+          </div>
         </div>
       </footer>
       <AiCopilot {...aiCopilotProps} />
