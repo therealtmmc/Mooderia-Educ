@@ -187,6 +187,36 @@ If the user asks to change tabs, mute/unmute, or create a folder, use the provid
     }
   });
 
+  // Vercel /api/generate fallback for AI Studio Preview Environment
+  app.post("/api/generate", async (req, res) => {
+    try {
+      const { text, mode } = req.body;
+      const ai = getGeminiClient();
+
+      const systemInstruction = `You are the AI brain of Mooderia Education, a playful, Kahoot-like gamified study platform. Convert the student notes into game data. 
+CRITICAL: Output ONLY a raw, clean JSON array. NEVER wrap the output in markdown text blocks like \`\`\`json. Never say hello or write explanations.
+
+Format for mode 'quiz': [{"question":"text", "options":["A","B","C","D"], "answer":"exact match"}]
+Format for mode 'flashcards': [{"front":"concept", "back":"explanation"}]`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Mode: ${mode}\n\nNotes Material:\n${text}`,
+        config: {
+          temperature: 0.1,
+          systemInstruction,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const resText = response.text || "[]";
+      res.json({ result: JSON.parse(resText.trim()) });
+    } catch (error: any) {
+      console.error("Generation API Error:", error);
+      res.status(500).json({ error: "Internal Server Connection Error" });
+    }
+  });
+
   // Serve static application in production, bind Vite dev middleware in development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
