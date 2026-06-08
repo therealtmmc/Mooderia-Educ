@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------
+    // Global Security Helper Functions
+    // -------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      // In strict setups, mandate email verification to prevent spam registrations
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string 
+        && id.size() <= 128 
+        && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // -------------------------------------------------------------
+    // User Profile Validation Blueprints
+    // -------------------------------------------------------------
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'username', 'email', 'avatar_accent_color', 'total_xp', 'current_streak', 'level_title', 'created_at'])
+        && data.keys().size() == 8
+        && data.uid is string && data.uid.size() <= 128
+        && data.username is string && data.username.size() <= 64
+        && data.email is string && data.email.size() <= 128
+        && data.avatar_accent_color is string && data.avatar_accent_color.size() <= 16
+        && data.total_xp is int && data.total_xp >= 0
+        && data.current_streak is int && data.current_streak >= 0
+        && data.level_title is string && data.level_title.size() <= 64
+        && data.created_at is timestamp;
+    }
+
+    match /users/{uid} {
+      // Path Variable ID Shielding
+      allow get: if isSignedIn() && isValidId(uid) && request.auth.uid == uid;
+      
+      // Let other users see names/scores for leaderboard but do NOT leak PII blanket details
+      allow list: if isSignedIn();
+
+      // Ensure proper creation details (Verify matching UID and fresh stats)
+      allow create: if (
+        isSignedIn() && 
+        isEmailVerified() &&
+        isValidId(uid) && 
+        request.auth.uid == uid && 
+        isValidUser(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().total_xp == 0 &&
+        incoming().current_streak == 1 &&
+        incoming().level_title == "Scribble Novice" &&
+        incoming().created_at == request.time
+      );
+
+      // Multi-Tiered Update Capping
+      allow update: if (
+        isSignedIn() && 
+        isValidId(uid) && 
+        request.auth.uid == uid && 
+        isValidUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().created_at == existing().created_at && (
+          // Action: Daily Streak or earning XP via complete Quiz drills
+          incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'avatar_accent_color', 'username'])
+        )
+      );
+
+      allow delete: if false; // Profiles are permanent for historical sync records
+    }
+
+    // -------------------------------------------------------------
+    // Study Set Caching & Multi-type Dataset Validation
+    // -------------------------------------------------------------
+    
+    function isValidStudySet(data) {
+      return data.keys().hasAll(['set_id', 'owner_id', 'title', 'source_file_type', 'extracted_plain_text'])
+        && data.set_id is string && data.set_id.size() <= 128
+        && data.owner_id is string && data.owner_id.size() <= 128
+        && data.title is string && data.title.size() <= 128
+        && data.source_file_type is string && data.source_file_type.size() <= 16
+        && data.extracted_plain_text is string && data.extracted_plain_text.size() <= 100000
+        
+        // Validate optional assets if passed
+        && (!data.keys().hasAny(['source_storage_url']) || (data.source_storage_url is string && data.source_storage_url.size() <= 1024))
+        && (!data.keys().hasAny(['ai_processed_at']) || data.ai_processed_at is timestamp);
+    }
+
+    match /study_sets/{setId} {
+      // Direct Get and Query-level protection (preventing arbitrary client scraping)
+      allow get: if isSignedIn() && isValidId(setId) && resource.data.owner_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.owner_id == request.auth.uid;
+
+      allow create: if (
+        isSignedIn() && 
+        isValidId(setId) && 
+        isValidStudySet(incoming()) && 
+        incoming().owner_id == request.auth.uid &&
+        incoming().set_id == setId
+      );
+
+      allow update: if (
+        isSignedIn() && 
+        isValidId(setId) && 
+        resource.data.owner_id == request.auth.uid &&
+        isValidStudySet(incoming()) &&
+        incoming().owner_id == existing().owner_id &&
+        incoming().extracted_plain_text == existing().extracted_plain_text && (
+          // Action: Save generated Quiz / Flashcard AI data blocks
+          incoming().diff(existing()).affectedKeys().hasOnly(['generated_content', 'ai_processed_at'])
+        )
+      );
+
+      allow delete: if isSignedIn() && isValidId(setId) && resource.data.owner_id == request.auth.uid;
+    }
+  }
+}

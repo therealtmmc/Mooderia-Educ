@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/api/generate", "destination": "/api/generate.js" },
     { "source": "/api/copilot", "destination": "/api/copilot.js" },
+    { "source": "/api/update-xp", "destination": "/api/update-xp.js" },
     { "source": "/(.*)", "destination": "/dist/$1" }
   ]
 }

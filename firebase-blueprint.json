@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with experience points and current study streak.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier of the user." },
+        "username": { "type": "string", "description": "Display name of the student." },
+        "email": { "type": "string", "format": "email", "description": "Email address of the student." },
+        "avatar_accent_color": { "type": "string", "description": "Hex or tailwind color for avatar." },
+        "total_xp": { "type": "integer", "description": "Accumulated game experience points." },
+        "current_streak": { "type": "integer", "description": "Consecutive days of studying." },
+        "level_title": { "type": "string", "description": "Gamified level milestone name." },
+        "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp." }
+      },
+      "required": ["uid", "username", "email", "total_xp", "current_streak", "level_title", "created_at"]
+    },
+    "StudySet": {
+      "title": "StudySet",
+      "description": "A collection of notes and AI generated quizzes/flashcards.",
+      "type": "object",
+      "properties": {
+        "set_id": { "type": "string", "description": "Unique identifier of the study set." },
+        "owner_id": { "type": "string", "description": "User ID of the creator." },
+        "title": { "type": "string", "description": "Title of the notes material." },
+        "source_file_type": { "type": "string", "description": "The type of file uploaded (e.g. pptx, docx, mp3, mp4)." },
+        "source_storage_url": { "type": "string", "description": "URL of the raw file stored in Firebase Cloud Storage." },
+        "extracted_plain_text": { "type": "string", "description": "Extracted text payload to analyze." },
+        "generated_content": { "type": "object", "description": "The AI generated game data." },
+        "ai_processed_at": { "type": "string", "format": "date-time", "description": "Timestamp when AI processing finished." }
+      },
+      "required": ["set_id", "owner_id", "title", "source_file_type", "extracted_plain_text"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Store user profiles, metrics, stats, streaks and titles."
+    },
+    "/study_sets/{setId}": {
+      "schema": "StudySet",
+      "description": "Stores raw text content, reference URL, and generated quiz/flashcard cached decks."
+    }
+  }
+}

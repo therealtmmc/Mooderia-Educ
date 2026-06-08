@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FolderCabinet, Material } from "../types";
+import { FolderCabinet, Material, QuizDeck, Flashcard } from "../types";
 import { sound } from "../utils/sound";
 import { 
   FolderPlus, FolderOpen, FileText, Camera, Volume2, Square, Play, Pause, 
@@ -8,11 +8,16 @@ import {
   Video, Image, Eye, Presentation
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { createDirInOPFS } from "../utils/opfs";
+import { uploadStudyFileLocally, runAIGeneratorAndSave, retrieveCachedStudySet } from "../firebase/hybridIntegration";
 
 interface FoldersViewProps {
   folders: FolderCabinet[];
   setFolders: React.Dispatch<React.SetStateAction<FolderCabinet[]>>;
   onMaterialAdded: () => void;
+  quizzes?: QuizDeck[];
+  setQuizzes?: React.Dispatch<React.SetStateAction<QuizDeck[]>>;
+  onNavigate?: (tab: 'folders' | 'quizzes' | 'profile' | 'analytics') => void;
 }
 
 const ICON_PRESETS = [
@@ -33,7 +38,14 @@ const COLOR_PRESETS = [
   { value: "fuchsia", class: "bg-fuchsia-600 border-fuchsia-400 text-fuchsia-400", hex: "#d946ef", glow: "shadow-[0_0_15px_rgba(217,70,239,0.3)]" }
 ];
 
-export default function FoldersView({ folders, setFolders, onMaterialAdded }: FoldersViewProps) {
+export default function FoldersView({ 
+  folders, 
+  setFolders, 
+  onMaterialAdded, 
+  quizzes, 
+  setQuizzes, 
+  onNavigate 
+}: FoldersViewProps) {
   // Navigation & Cabinet Creation States
   const [selectedFolder, setSelectedFolder] = useState<FolderCabinet | null>(null);
   const [isCreatingCabinet, setIsCreatingCabinet] = useState(false);
@@ -49,12 +61,126 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
   const [materialName, setMaterialName] = useState("");
   const [materialContent, setMaterialContent] = useState("");
   const [uploadedBase64, setUploadedBase64] = useState<string | undefined>(undefined);
+  const [uploadedUrl, setUploadedUrl] = useState<string | undefined>(undefined);
   const [uploadedFileType, setUploadedFileType] = useState<string>("");
+
+  // AI Generation States
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiReportType, setAiReportType] = useState<'quiz' | 'flashcards' | null>(null);
+  const [aiOperationSuccess, setAiOperationSuccess] = useState<boolean>(false);
+  const [hasCachedStateCheck, setHasCachedStateCheck] = useState<boolean>(false);
+  const [cachedContentStatus, setCachedContentStatus] = useState<string>("");
 
   // Material Preview Lightbox State
   const [previewingMaterial, setPreviewingMaterial] = useState<Material | null>(null);
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  // Synced state updates (to reflect if folders list modifies outside)
+  const activeFolderInList = folders.find(f => f.id === selectedFolder?.id);
+  const currentlyOpenedFolder = activeFolderInList || selectedFolder;
+
+  // Cache effect to automatically inspect Firestore on file load
+  useEffect(() => {
+    if (!previewingMaterial) {
+      setHasCachedStateCheck(false);
+      setCachedContentStatus("");
+      setAiOperationSuccess(false);
+      return;
+    }
+
+    const checkCacheStatus = async () => {
+      setHasCachedStateCheck(false);
+      setCachedContentStatus("Analyzing localized database nodes...");
+      try {
+        const cached = await retrieveCachedStudySet(previewingMaterial.id);
+        if (cached) {
+          const modesSorted = [];
+          if (cached.quiz && cached.quiz.length > 0) modesSorted.push("Academic Quiz");
+          if (cached.flashcards && cached.flashcards.length > 0) modesSorted.push("Vocabulary Flashcards");
+          
+          if (modesSorted.length > 0) {
+            setCachedContentStatus(`CACHE HIT! Located offline pre-concurred files: ${modesSorted.join(" & ")}`);
+            setAiOperationSuccess(true);
+          } else {
+            setCachedContentStatus("Awaiting academic prompt execution to generate drills.");
+          }
+        } else {
+          setCachedContentStatus("Awaiting academic prompt execution to generate drills.");
+        }
+      } catch (err) {
+        console.warn("Cached state resolution issue:", err);
+        setCachedContentStatus("Ready to compile academic prompts.");
+      } finally {
+        setHasCachedStateCheck(true);
+      }
+    };
+
+    checkCacheStatus();
+  }, [previewingMaterial]);
+
+  const handleTriggerAIPipeline = async (mode: 'quiz' | 'flashcards') => {
+    if (!previewingMaterial) return;
+    setIsGeneratingAI(true);
+    setAiReportType(mode);
+    setAiOperationSuccess(false);
+    handleChime();
+
+    const textToProcess = previewingMaterial.textContent || `Study material regarding ${previewingMaterial.name}`;
+
+    try {
+      // 1. Initiate backend generation pipeline and Firestore cloud caching
+      const data = await runAIGeneratorAndSave(
+        previewingMaterial.id,
+        textToProcess,
+        mode,
+        previewingMaterial.name,
+        previewingMaterial.type
+      );
+
+      // 2. Synthesize and configure customized academic Deck models
+      if (setQuizzes) {
+        const generatedCards: Flashcard[] = data.map((item: any, idx: number) => ({
+          id: `card_ai_${Date.now()}_${idx}`,
+          question: mode === 'quiz' ? item.question : item.front,
+          answer: mode === 'quiz' ? item.answer : item.back,
+          strength: 0,
+          questionType: mode === 'quiz' ? 'multiple-choice' : 'identification',
+          options: mode === 'quiz' ? item.options : undefined
+        }));
+
+        const newDeck: QuizDeck = {
+          id: `deck_ai_${previewingMaterial.id}_${mode}`,
+          name: `🧠 ${previewingMaterial.name.replace(/\.[^/.]+$/, "")} (${mode === 'quiz' ? 'Quiz' : 'Cards'})`,
+          description: `Generated dynamically via Academic Intelligence from: ${previewingMaterial.name}`,
+          folderId: currentlyOpenedFolder?.id,
+          cards: generatedCards,
+          attemptsCount: 0,
+          createdAt: new Date().toISOString()
+        };
+
+        setQuizzes(prev => {
+          const loaded = prev.filter(d => d.id !== newDeck.id);
+          return [newDeck, ...loaded];
+        });
+      }
+
+      setAiOperationSuccess(true);
+      setCachedContentStatus(`Success! Synced high-yield gamification sets inside Firestore Cache: 'study_sets/${previewingMaterial.id}'`);
+    } catch (err) {
+      console.error("[Academic Hub Fail]", err);
+      alert("academic generation pipeline received offline constraints.");
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleLaunchGame = () => {
+    if (!previewingMaterial || !onNavigate) return;
+    handleChime();
+    setPreviewingMaterial(null);
+    onNavigate('quizzes');
+  };
 
   // Material Edit States
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -84,10 +210,6 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-
-  // Synced state updates (to reflect if folders list modifies outside)
-  const activeFolderInList = folders.find(f => f.id === selectedFolder?.id);
-  const currentlyOpenedFolder = activeFolderInList || selectedFolder;
 
   // Cleanup timers & streams on unmount
   useEffect(() => {
@@ -125,6 +247,11 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
       materials: [],
       createdAt: new Date().toISOString()
     };
+
+    // Safely create a local node in browser OPFS
+    createDirInOPFS(newCabinet.id).catch(err => {
+      console.warn("[OPFS Cabinet Sandbox] Not supported or failed to init:", err);
+    });
 
     setFolders(prev => [newCabinet, ...prev]);
     setIsCreatingCabinet(false);
@@ -255,52 +382,60 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
     }
   };
 
-  const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string | undefined;
-      if (base64) {
-        setUploadedBase64(base64);
-        setMaterialName(file.name);
-        
-        // Detect material types
-        const typeStr = file.type.toLowerCase();
-        const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-        
-        if (typeStr.includes('pdf')) {
-          setMaterialType('pdf');
-          setUploadedFileType("PDF Document");
-          setMaterialContent(`Uploaded PDF File: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB). Cataloged cleanly for academic references.`);
-        } else if (typeStr.includes('image') || ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].some(ext => extension.includes(ext))) {
-          setMaterialType('snapshot');
-          setUploadedFileType("Snapshot Image");
-          setMaterialContent(`Uploaded Photo Asset: ${file.name} (${(file.size / 1024).toFixed(1)} KB) - parsed cleanly as vision asset.`);
-        } else if (typeStr.includes('video') || ['.mp4', '.webm', '.ogg', '.mov'].some(ext => extension.includes(ext))) {
-          setMaterialType('video');
-          setUploadedFileType("Video Recording");
-          setMaterialContent(`Uploaded Dynamic Video: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - Indexed with frame details.`);
-        } else if (typeStr.includes('presentation') || typeStr.includes('powerpoint') || ['.ppt', '.pptx', '.key'].some(ext => extension.includes(ext))) {
-          setMaterialType('powerpoint');
-          setUploadedFileType("Powerpoint Presentation");
-          setMaterialContent(`Uploaded PowerPoint Deck: ${file.name} - syllabus slides compiled.`);
-        } else if (typeStr.includes('audio') || ['.mp3', '.wav', '.m4a', '.ogg', '.aac'].some(ext => extension.includes(ext))) {
-          setMaterialType('audio_file');
-          setUploadedFileType("Audio Cassette Recording");
-          setMaterialContent(`Uploaded Audio Track: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) - audio reference database.`);
-        } else {
-          // Fallback to general note type
-          setMaterialType('note');
-          setUploadedFileType("Academic Draft File");
-          setMaterialContent(`Uploaded Academic Draft: ${file.name} - classified in index.`);
-        }
-        
-        sound.playChime();
+  const processFile = async (file: File) => {
+    if (!currentlyOpenedFolder) {
+      alert("Please open an academic folder first before uploading resources!");
+      return;
+    }
+
+    try {
+      console.log(`[FoldersView] Saving file "${file.name}" to Origin Private File System...`);
+      // 1. Upload/save raw file strictly locally to OPFS and fetch instant DOM URL plus plain text
+      const { url, extractedText } = await uploadStudyFileLocally(currentlyOpenedFolder.id, file);
+      
+      setUploadedUrl(url);
+      setMaterialName(file.name);
+      setMaterialContent(extractedText);
+
+      // Detect material types and configure metadata previews
+      const typeStr = file.type.toLowerCase();
+      const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      
+      if (typeStr.includes('pdf')) {
+        setMaterialType('pdf');
+        setUploadedFileType("PDF Document");
+      } else if (typeStr.includes('image') || ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].some(ext => extension.includes(ext))) {
+        setMaterialType('snapshot');
+        setUploadedFileType("Snapshot Image");
+      } else if (typeStr.includes('video') || ['.mp4', '.webm', '.ogg', '.mov'].some(ext => extension.includes(ext))) {
+        setMaterialType('video');
+        setUploadedFileType("Video Recording");
+      } else if (typeStr.includes('presentation') || typeStr.includes('powerpoint') || ['.ppt', '.pptx', '.key'].some(ext => extension.includes(ext))) {
+        setMaterialType('powerpoint');
+        setUploadedFileType("Powerpoint Presentation");
+      } else if (typeStr.includes('audio') || ['.mp3', '.wav', '.m4a', '.ogg', '.aac'].some(ext => extension.includes(ext))) {
+        setMaterialType('audio_file');
+        setUploadedFileType("Audio Cassette Recording");
+      } else {
+        setMaterialType('note');
+        setUploadedFileType("Academic Draft File");
       }
-    };
-    reader.onerror = () => {
-      alert("Encountered error reading file.");
-    };
-    reader.readAsDataURL(file);
+
+      // Convert to a base64Data pointer for backwards compatibility in existing players
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string | undefined;
+        if (base64) {
+          setUploadedBase64(base64);
+        }
+      };
+      reader.readAsDataURL(file);
+
+      sound.playChime();
+    } catch (err) {
+      console.error("[FoldersView] Failed to process study asset locally in OPFS:", err);
+      alert("Encrypted folder write failed. Checked browser OPFS permissions.");
+    }
   };
 
   // Save the submitted study material to the active folder
@@ -314,6 +449,7 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
       type: materialType,
       textContent: materialContent.trim() || undefined,
       base64Data: uploadedBase64,
+      url: uploadedUrl,
       durationSeconds: materialType === 'voice' ? (recordDuration || 120) : undefined,
       createdAt: new Date().toISOString()
     };
@@ -333,6 +469,7 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
     setMaterialName("");
     setMaterialContent("");
     setUploadedBase64(undefined);
+    setUploadedUrl(undefined);
     setUploadedFileType("");
     setRecordDuration(0);
     handleChime();
@@ -1559,6 +1696,119 @@ export default function FoldersView({ folders, setFolders, onMaterialAdded }: Fo
                     </p>
                   </div>
                 )}
+
+                {/* 🧠 AI BRAIN ACCELERATORS & HYBRID RECALLS */}
+                <div className="bg-slate-950/60 border border-purple-500/25 p-5 rounded-2xl glow-purple text-left space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
+                      <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                        AI Cognitive Accelerator Hub
+                      </h4>
+                    </div>
+
+                    {hasCachedStateCheck ? (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 border rounded-lg font-bold flex items-center gap-1.5 ${
+                        aiOperationSuccess 
+                          ? "bg-emerald-950/45 border-emerald-900/40 text-emerald-400" 
+                          : "bg-slate-900 border-slate-800 text-slate-400"
+                      }`}>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        {aiOperationSuccess ? "SECURE CACHE ACTIVE" : "AWAITING PROMPT"}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono text-purple-450 animate-pulse">
+                        Scanning Cloud Logs...
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-xl">
+                    Our hybrid engine acts as a bridge. Raw lecture assets remain cached securely on your local machine ({previewingMaterial.url ? "OPFS Vault" : "Memory Pool"}). High-yield study sets and scores synchronize to Firebase automatically.
+                  </p>
+
+                  <div className="text-[10px] font-mono text-slate-500 bg-slate-950 p-2.5 rounded-lg border border-slate-900 leading-snug">
+                    <span className="text-purple-400 font-bold">Pipeline Status:</span> {cachedContentStatus || "System initialized. Core templates compiled."}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {/* OPTION 1: HIGH-YIELD ACADEMIC QUIZ */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                      <div>
+                        <h5 className="text-xs font-display font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                          <Beaker className="w-4 h-4 text-violet-400" />
+                          <span>Spaced-Repetition Quiz</span>
+                        </h5>
+                        <p className="text-[10px] text-slate-450 mt-1 leading-normal font-sans">
+                          Build complex multiple-choice drills with custom question distractor items derived from textbook text.
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        {isGeneratingAI && aiReportType === 'quiz' ? (
+                          <div className="flex items-center gap-2 text-xs font-mono text-purple-400 pt-1">
+                            <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
+                            <span>Accelerating prompts...</span>
+                          </div>
+                        ) : aiOperationSuccess ? (
+                          <button
+                            type="button"
+                            onClick={() => handleLaunchGame()}
+                            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 font-display text-xs font-semibold rounded-lg text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity border-t border-white/10"
+                          >
+                            ⚡ Run Quiz Recall (Cache Active)
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTriggerAIPipeline('quiz')}
+                            className="w-full py-2 bg-purple-650 hover:bg-purple-605 text-[11px] font-semibold rounded-lg text-white cursor-pointer transition-all border-t border-white/15"
+                          >
+                            Compile High-Yield Quiz
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* OPTION 2: MULTI-LEVEL VOCABULARY FLASHCARDS */}
+                    <div className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                      <div>
+                        <h5 className="text-xs font-display font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                          <GraduationCap className="w-4 h-4 text-pink-400" />
+                          <span>Vocab Flashcard Deck</span>
+                        </h5>
+                        <p className="text-[10px] text-slate-450 mt-1 leading-normal font-sans">
+                          Auto-extract core high-yield terms, formulas, and textbook definitions onto physical review cards.
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        {isGeneratingAI && aiReportType === 'flashcards' ? (
+                          <div className="flex items-center gap-2 text-xs font-mono text-pink-450 pt-1">
+                            <RefreshCw className="w-4 h-4 animate-spin text-pink-400" />
+                            <span>Accelerating prompts...</span>
+                          </div>
+                        ) : aiOperationSuccess ? (
+                          <button
+                            type="button"
+                            onClick={() => handleLaunchGame()}
+                            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 font-display text-xs font-semibold rounded-lg text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity border-t border-white/10"
+                          >
+                            ⚡ Launch Flashcard Recall (Cache Active)
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTriggerAIPipeline('flashcards')}
+                            className="w-full py-2 bg-purple-650 hover:bg-purple-605 text-[11px] font-semibold rounded-lg text-white cursor-pointer transition-all border-t border-white/15"
+                          >
+                            Extract Vocab Flashcards
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* FOOTER ACTIONS */}

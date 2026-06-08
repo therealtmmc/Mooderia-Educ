@@ -386,7 +386,14 @@ export default function App() {
               transition={{ duration: 0.15 }}
             >
               {activeTab === 'folders' && (
-                <FoldersView folders={folders} setFolders={setFolders} onMaterialAdded={handleMaterialAdded} />
+                <FoldersView 
+                  folders={folders} 
+                  setFolders={setFolders} 
+                  onMaterialAdded={handleMaterialAdded} 
+                  quizzes={quizzes}
+                  setQuizzes={setQuizzes}
+                  onNavigate={handleTabChange}
+                />
               )}
               {activeTab === 'quizzes' && (
                 <QuizzesView quizzes={quizzes} setQuizzes={setQuizzes} folders={folders} onQuizAttemptFinished={handleQuizAttemptFinished} />
@@ -546,7 +553,14 @@ export default function App() {
                 className="w-full"
               >
                 {activeTab === 'folders' && (
-                  <FoldersView folders={folders} setFolders={setFolders} onMaterialAdded={handleMaterialAdded} />
+                  <FoldersView 
+                    folders={folders} 
+                    setFolders={setFolders} 
+                    onMaterialAdded={handleMaterialAdded} 
+                    quizzes={quizzes}
+                    setQuizzes={setQuizzes}
+                    onNavigate={handleTabChange}
+                  />
                 )}
                 {activeTab === 'quizzes' && (
                   <QuizzesView quizzes={quizzes} setQuizzes={setQuizzes} folders={folders} onQuizAttemptFinished={handleQuizAttemptFinished} />
@@ -643,6 +657,9 @@ export default function App() {
                 folders={folders} 
                 setFolders={setFolders} 
                 onMaterialAdded={handleMaterialAdded} 
+                quizzes={quizzes}
+                setQuizzes={setQuizzes}
+                onNavigate={handleTabChange}
               />
             )}
             
