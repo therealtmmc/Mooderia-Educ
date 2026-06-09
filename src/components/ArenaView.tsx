@@ -182,7 +182,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     }
   };
 
-  const createRoomViaHttp = async (deckName: string, cardsList: any[]) => {
+  const createRoomViaHttp = async (deckName: string, cardsList: any[], retries = 30) => {
     try {
       const res = await fetch(getBackendUrl("/api/arena/create"), {
         method: "POST",
@@ -197,8 +197,12 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       
       const rawText = await res.text();
       if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-        console.error("[Network Error] Received HTML instead of JSON for room creation:", rawText);
-        throw new Error("Server configuration error (the API returned HTML 404).");
+        console.warn("[Network Warning] Container waking up. HTML received:", rawText.slice(0, 50));
+        if (retries > 0) {
+          setTimeout(() => createRoomViaHttp(deckName, cardsList, retries - 1), 2000);
+          return;
+        }
+        throw new Error("Server took too long to spin up (HTML 404/502).");
       }
       
       const data = JSON.parse(rawText);
@@ -212,11 +216,15 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         setErrorText(data.error || "Failed to sync battle room over HTTP.");
       }
     } catch (err: any) {
+      if (retries > 0) {
+        setTimeout(() => createRoomViaHttp(deckName, cardsList, retries - 1), 2000);
+        return;
+      }
       setErrorText(`Handshake over HTTP rejected: ${err.message}`);
     }
   };
 
-  const joinRoomViaHttp = async (targetRoomCode: string) => {
+  const joinRoomViaHttp = async (targetRoomCode: string, retries = 30) => {
     try {
       const res = await fetch(getBackendUrl("/api/arena/join"), {
         method: "POST",
@@ -229,8 +237,12 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       
       const rawText = await res.text();
       if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-        console.error("[Network Error] Received HTML instead of JSON for joining:", rawText);
-        throw new Error("Server configuration error (the API returned HTML 404).");
+        console.warn("[Network Warning] Container waking up. HTML received:", rawText.slice(0, 50));
+        if (retries > 0) {
+          setTimeout(() => joinRoomViaHttp(targetRoomCode, retries - 1), 2000);
+          return;
+        }
+        throw new Error("Server took too long to spin up (HTML 404/502).");
       }
 
       const data = JSON.parse(rawText);
@@ -244,6 +256,10 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         setErrorText(data.error || "Room index not active or nickname rejected.");
       }
     } catch (err: any) {
+      if (retries > 0) {
+        setTimeout(() => joinRoomViaHttp(targetRoomCode, retries - 1), 2000);
+        return;
+      }
       setErrorText(`Failed to bind player thread: ${err.message}`);
     }
   };
@@ -321,7 +337,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     try {
       // Create WebSockets instance securely with VITE_BACKEND_URL evaluation
       let wsUrl = "";
-      const customBackendUrl = import.meta.env.VITE_BACKEND_URL;
+      const customBackendUrl = (import.meta as any).env.VITE_BACKEND_URL;
       
       if (customBackendUrl) {
         // Automatically upgrades https://onrender.com -> wss://onrender.com
@@ -1246,33 +1262,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   // RENDER DOCK 1.5: CONNECTION/ERROR FALLBACK VIEWS
   // -------------------------------------------------------------
   if (role !== null) {
-    if (connectionStatus === "connecting" || !roomCode) {
-      return (
-        <div className="max-w-xl mx-auto bg-slate-950/60 border border-slate-900 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
-          <div className="absolute inset-0 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 relative">
-              <div className="absolute inset-x-0 inset-y-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-              <Users className="w-6 h-6 animate-pulse" />
-            </div>
-            <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-black">Establishing Secure Sync Tunnel</p>
-            <h2 className="text-xl font-black text-white uppercase tracking-tight">Syncing with Battle Arena...</h2>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-              Generating unique room credentials and spawning secure WebSocket threads on the centralized education ledger.
-            </p>
-            <div className="pt-4">
-              <button 
-                onClick={resetToDash}
-                className="px-4 py-2 border border-slate-800 rounded-xl bg-slate-900/40 text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-mono uppercase tracking-widest transition-all cursor-pointer"
-              >
-                Cancel Link
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (connectionStatus === "disconnected" || errorText) {
       return (
         <div className="max-w-xl mx-auto bg-slate-950/60 border border-rose-950/40 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
@@ -1300,6 +1289,33 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
                 className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white text-xs font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer"
               >
                 Reset Arena
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (connectionStatus === "connecting" || !roomCode) {
+      return (
+        <div className="max-w-xl mx-auto bg-slate-950/60 border border-slate-900 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
+          <div className="absolute inset-0 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 space-y-4">
+            <div className="mx-auto w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 relative">
+              <div className="absolute inset-x-0 inset-y-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+              <Users className="w-6 h-6 animate-pulse" />
+            </div>
+            <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-black">Establishing Secure Sync Tunnel</p>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Syncing with Battle Arena...</h2>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              Generating unique room credentials and spawning secure WebSocket threads on the centralized education ledger.
+            </p>
+            <div className="pt-4">
+              <button 
+                onClick={resetToDash}
+                className="px-4 py-2 border border-slate-800 rounded-xl bg-slate-900/40 text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-mono uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Cancel Link
               </button>
             </div>
           </div>
