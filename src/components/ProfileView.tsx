@@ -10,6 +10,7 @@ interface ProfileViewProps {
   folders: FolderCabinet[];
   quizzes: QuizDeck[];
   totalAttempts: number;
+  onLogout?: () => void;
 }
 
 const EMOJI_PRESETS = ["🎓", "🧪", "🔬", "🧬", "🚀", "💻", "🧠", "📚", "🎨", "📐", "🌍", "🪐"];
@@ -22,7 +23,7 @@ const GRADIENT_PRESETS = [
   { id: "solar", label: "Solar Flare", start: "from-yellow-500", end: "to-amber-500", css: "bg-gradient-to-br from-yellow-500 to-amber-500" }
 ];
 
-export default function ProfileView({ profile, setProfile, folders, quizzes, totalAttempts }: ProfileViewProps) {
+export default function ProfileView({ profile, setProfile, folders, quizzes, totalAttempts, onLogout }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     message: string;
@@ -226,9 +227,13 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
                         setConfirmAction({
                           message: "Are you sure you want to clear this account and start completely fresh? All current folders, quizzes, and score history will be deleted.",
                           onConfirm: () => {
-                            setProfile(prev => ({ ...prev, signedIn: false }));
                             localStorage.clear();
                             setConfirmAction(null);
+                            if (onLogout) {
+                              onLogout();
+                            } else {
+                              setProfile(prev => ({ ...prev, signedIn: false }));
+                            }
                           }
                         });
                       }}

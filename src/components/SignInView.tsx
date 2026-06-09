@@ -1,77 +1,228 @@
-import React, { useState } from "react";
-import { StudentIdentity } from "../types";
+import React, { useState, useEffect } from "react";
+import { 
+  loginWithGoogle, 
+  signInWithEmail, 
+  signUpWithEmail 
+} from "../firebase/authService";
+import { auth } from "../firebase/config";
 import { sound } from "../utils/sound";
-import { ShieldCheck, User, School, BookOpen, GraduationCap, ArrowRight, Laptop, Sparkles } from "lucide-react";
+import { 
+  GraduationCap, 
+  ArrowRight, 
+  Mail, 
+  Lock, 
+  RefreshCw, 
+  Chrome, 
+  Sparkles, 
+  CheckCircle,
+  HelpCircle
+} from "lucide-react";
 
 interface SignInViewProps {
-  onSignInComplete: (newProfile: StudentIdentity) => void;
+  onVerificationCheckSuccess: () => void;
 }
 
-export default function SignInView({ onSignInComplete }: SignInViewProps) {
-  const [name, setName] = useState("");
-  const [year, setYear] = useState("1st Year");
-  const [university, setUniversity] = useState("");
-  const [program, setProgram] = useState("");
-  const [avatarEmoji, setAvatarEmoji] = useState("🧠");
-  const [gradientIndex, setGradientIndex] = useState(0);
+export default function SignInView({ onVerificationCheckSuccess }: SignInViewProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const EMOJIS = ["🧠", "🎓", "🔬", "💻", "🎨", "📚", "📐", "🚀", "🧬", "🌍"];
-  const GRADIENTS = [
-    { start: "from-indigo-600", end: "to-fuchsia-600", bg: "bg-gradient-to-br from-indigo-600 to-fuchsia-600" },
-    { start: "from-teal-600", end: "to-emerald-600", bg: "bg-gradient-to-br from-teal-600 to-emerald-600" },
-    { start: "from-rose-600", end: "to-orange-500", bg: "bg-gradient-to-br from-rose-600 to-orange-500" },
-    { start: "from-cyan-500", end: "to-blue-600", bg: "bg-gradient-to-br from-cyan-500 to-blue-600" },
-    { start: "from-yellow-500", end: "to-amber-500", bg: "bg-gradient-to-br from-yellow-500 to-amber-500" }
-  ];
+  // Verification stage state
+  const [isVerificationDispatched, setIsVerificationDispatched] = useState(false);
+  const [isCheckingReload, setIsCheckingReload] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Monitor auth status if already verified
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user && user.emailVerified) {
+      onVerificationCheckSuccess();
+    } else if (user && !user.emailVerified) {
+      setIsVerificationDispatched(true);
+    }
+  }, [onVerificationCheckSuccess]);
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage("");
+    setIsLoading(true);
+    sound.playChime();
+    try {
+      const user = await loginWithGoogle();
+      if (user) {
+        sound.playChime();
+        onVerificationCheckSuccess();
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed Google authentication credentials scan.");
+      sound.playPop();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !university.trim() || !program.trim()) {
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage("Please key in both valid email and authentication credentials.");
       return;
     }
 
-    sound.playChime();
-
-    const newProfile: StudentIdentity = {
-      name: name.trim(),
-      studentId: `STU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      institution: university.trim(),
-      gradeLevel: year,
-      avatarEmoji,
-      avatarGradientStart: GRADIENTS[gradientIndex].start,
-      avatarGradientEnd: GRADIENTS[gradientIndex].end,
-      university: university.trim(),
-      program: program.trim(),
-      year: year,
-      signedIn: true
-    };
-
-    onSignInComplete(newProfile);
-  };
-
-  const handleSelectEmoji = (emoji: string) => {
+    setErrorMessage("");
+    setIsLoading(true);
     sound.playTick();
-    setAvatarEmoji(emoji);
+
+    try {
+      if (isSignUp) {
+        // CHANNEL B: Registration & Verification Dispatch
+        const user = await signUpWithEmail(email.trim(), password.trim());
+        if (user) {
+          setIsVerificationDispatched(true);
+          sound.playChime();
+        }
+      } else {
+        // CHANNEL B: Login
+        const user = await signInWithEmail(email.trim(), password.trim());
+        if (user) {
+          if (!user.emailVerified) {
+            setIsVerificationDispatched(true);
+            setErrorMessage("Please authenticate the magic link verified portal on your email.");
+          } else {
+            sound.playChime();
+            onVerificationCheckSuccess();
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err.message || "Authentication credentials failed on active directory checking.");
+      sound.playPop();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSelectGradient = (index: number) => {
+  const handleCheckReload = async () => {
+    setIsCheckingReload(true);
+    setErrorMessage("");
     sound.playTick();
-    setGradientIndex(index);
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await user.reload();
+        if (auth.currentUser?.emailVerified) {
+          sound.playChime();
+          onVerificationCheckSuccess();
+        } else {
+          setErrorMessage("Verification link is not completed yet. Please check your spam folder or wait 1 min.");
+          sound.playPop();
+        }
+      } else {
+        setErrorMessage("Critical reference check: No active authenticator user session located.");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Checking failed. Please verify internet coordinates.");
+    } finally {
+      setIsCheckingReload(false);
+    }
   };
+
+  const handleSignOutReset = async () => {
+    sound.playTick();
+    try {
+      await auth.signOut();
+      setIsVerificationDispatched(false);
+      setErrorMessage("");
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  if (isVerificationDispatched) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 relative selection:bg-indigo-600/30">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
+
+        <div className="w-full max-w-md relative bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6 text-center hover:border-indigo-500/20 transition-all">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 via-indigo-500 to-purple-500" />
+          
+          <div className="mx-auto w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center shadow-lg text-4xl animate-bounce">
+            📬
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-white uppercase font-display">
+              Check your inbox!
+            </h1>
+            <p className="text-sm text-slate-400 leading-relaxed font-sans">
+              We sent a <span className="text-indigo-400 font-bold">magic portal verification link</span> to <span className="text-white font-semibold underline">{auth.currentUser?.email}</span>.
+            </p>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 border border-slate-850 rounded-2xl text-xs text-slate-400 text-left space-y-2">
+            <p className="font-bold text-teal-400 uppercase font-mono tracking-wider flex items-center gap-1.5">
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>Next Steps for Students</span>
+            </p>
+            <ol className="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+              <li>Open your personal email app (Gmail, Yahoo, Outlook, etc.).</li>
+              <li>Locate the automated verification email from <span className="font-semibold text-slate-300">Mooderia Education</span> / Firebase.</li>
+              <li>Click the secure validation link inside the message.</li>
+              <li>Return to this page and click the button below!</li>
+            </ol>
+          </div>
+
+          {errorMessage && (
+            <div className="p-3 bg-rose-950/40 border border-rose-900/30 rounded-xl text-xs text-rose-400 text-left">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={handleCheckReload}
+              disabled={isCheckingReload}
+              className="w-full py-3 bg-gradient-to-r from-teal-500 to-indigo-500 hover:opacity-90 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isCheckingReload ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <span>Verify &amp; Refresh Session</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSignOutReset}
+              className="w-full py-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              Back to Sign-In Channels
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 relative selection:bg-indigo-600/30">
-      {/* Absolute geometric noise backdrops */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
 
-      <div className="w-full max-w-lg relative bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 space-y-8 hover:border-slate-750 transition-colors">
-        {/* Glowing Top bar */}
+      <div className="w-full max-w-md relative bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 space-y-8 hover:border-slate-750 transition-colors">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
 
-        {/* Brand identity header */}
+        {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="mx-auto w-14 h-14 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center shadow-lg p-2 overflow-hidden">
-            <img src="/logo.png" alt="Mooderia Education Logo" className="w-full h-full object-contain filter invert opacity-80" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            <img 
+              src="/logo.png" 
+              alt="Mooderia Education Logo" 
+              className="w-full h-full object-contain filter invert opacity-80" 
+              onError={(e) => { 
+                e.currentTarget.style.display = 'none'; 
+                e.currentTarget.nextElementSibling?.classList.remove('hidden'); 
+              }} 
+            />
             <GraduationCap className="w-8 h-8 hidden" />
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white uppercase mt-2">
@@ -82,131 +233,106 @@ export default function SignInView({ onSignInComplete }: SignInViewProps) {
           </p>
         </div>
 
-        {/* Introduction Note */}
+        {/* Introduction */}
         <div className="bg-slate-950/60 p-4 border border-slate-850 rounded-2xl text-xs text-slate-400 space-y-1">
-          <p className="font-semibold text-white uppercase font-mono">🔑 SECURE CLIENT SETUP</p>
-          <p className="hidden md:block">Welcome to the Mooderia Education desktop workspace. Your progress will be securely saved locally. Please initialize your profile to begin.</p>
-          <p className="md:hidden">Please authorize this mobile workstation of Mooderia Education by verifying your profile coordinates. All configurations persist offline.</p>
+          <p className="font-semibold text-white uppercase font-mono flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>STUDENT WORKSPACE ENTRY</span>
+          </p>
+          <p>Please log in using your student email account credentials or Google Authentication popup to access verified portfolios.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Full Name input */}
-          <div className="space-y-1.5ClassName bg-slate-900">
-            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Your Full Name</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
-                <User className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. John Doe"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Academic university / School */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">University / Alma Mater</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
-                <School className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                required
-                value={university}
-                onChange={e => setUniversity(e.target.value)}
-                placeholder="e.g. Stanford University"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Degree program */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Name of Program / Major</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
-                <BookOpen className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                required
-                value={program}
-                onChange={e => setProgram(e.target.value)}
-                placeholder="e.g. BS Computer Science"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Year of study dropdown selection */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Year of Study</label>
-            <select
-              value={year}
-              onChange={e => setYear(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
-            >
-              <option value="1st Year">1st Year (Freshman)</option>
-              <option value="2nd Year">2nd Year (Sophomore)</option>
-              <option value="3rd Year">3rd Year (Junior)</option>
-              <option value="4th Year">4th Year (Senior)</option>
-              <option value="Postgraduate">Postgraduate Standard</option>
-            </select>
-          </div>
-
-          {/* AVATAR EMBED FOR UNIQUE ID */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Select Badge Avatar</span>
-              <span className="text-xl">{avatarEmoji}</span>
-            </div>
-            <div className="flex flex-wrap gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850">
-              {EMOJIS.map(item => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => handleSelectEmoji(item)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all ${
-                    avatarEmoji === item ? "bg-indigo-600 text-white scale-110" : "bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ACCENT BACKGROUND GRADIENT CARD */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Select linear brand theme</span>
-            <div className="grid grid-cols-5 gap-2">
-              {GRADIENTS.map((grad, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSelectGradient(idx)}
-                  className={`h-7 rounded-lg border border-white/5 transition-all flex items-center justify-center ${grad.bg} ${
-                    gradientIndex === idx ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900" : "opacity-80 hover:opacity-100"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* SIGN IN RUN DRILL TOGGLE */}
+        {/* CHANNEL A: GOOGLE SIGN-IN */}
+        <div className="space-y-3">
           <button
-            type="submit"
-            className="w-full py-3 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-950 flex items-center justify-center gap-2 cursor-pointer group"
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/30 text-xs font-bold text-slate-250 rounded-xl transition-all flex items-center justify-center gap-3 cursor-pointer group shadow-sm disabled:opacity-50"
           >
-            <span>Register &amp; Open Workspace</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <Chrome className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+            <span>Continue with Google Account</span>
           </button>
+
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-slate-850" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">OR INDEPENDENT LOGIN</span>
+            <div className="flex-1 h-px bg-slate-850" />
+          </div>
+        </div>
+
+        {/* CHANNEL B: EMAIL AUTHENTICATION FORM */}
+        <form onSubmit={handleEmailAuthSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Student Email</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                <Mail className="w-4 h-4" />
+              </span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="e.g. name@university.edu"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Password Key</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                <Lock className="w-4 h-4" />
+              </span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Password (minimum 6 characters)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          {errorMessage && (
+            <div className="p-3 bg-rose-950/40 border border-rose-900/30 rounded-xl text-xs text-rose-400 text-left leading-normal font-sans">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-950 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <>
+                  <span>{isSignUp ? "Initialize Profile & Register" : "Unlock Workspace Client"}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="text-center pt-3 border-t border-slate-850/60 mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playTick();
+                setIsSignUp(!isSignUp);
+                setErrorMessage("");
+              }}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-bold hover:underline cursor-pointer"
+            >
+              {isSignUp ? "Already have an account? Log In" : "New student? Create a secure account"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

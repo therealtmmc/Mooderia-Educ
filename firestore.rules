@@ -16,7 +16,7 @@ service cloud.firestore {
     }
 
     function isEmailVerified() {
-      // In strict setups, mandate email verification to prevent spam registrations
+      // Mandate email verification to prevent spam registrations
       return request.auth.token.email_verified == true;
     }
 
@@ -39,15 +39,20 @@ service cloud.firestore {
     // -------------------------------------------------------------
     
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'username', 'email', 'avatar_accent_color', 'total_xp', 'current_streak', 'level_title', 'created_at'])
-        && data.keys().size() == 8
+      return data.keys().hasAll(['uid', 'first_name', 'last_name', 'email', 'university', 'year', 'theme', 'avatar_emoji', 'total_xp', 'current_streak', 'level_title', 'last_active', 'created_at'])
+        && data.keys().size() == 13
         && data.uid is string && data.uid.size() <= 128
-        && data.username is string && data.username.size() <= 64
+        && data.first_name is string && data.first_name.size() <= 128
+        && data.last_name is string && data.last_name.size() <= 128
         && data.email is string && data.email.size() <= 128
-        && data.avatar_accent_color is string && data.avatar_accent_color.size() <= 16
+        && data.university is string && data.university.size() <= 200
+        && data.year is string && data.year.size() <= 32
+        && data.theme is string && data.theme.size() <= 64
+        && data.avatar_emoji is string && data.avatar_emoji.size() <= 64
         && data.total_xp is int && data.total_xp >= 0
         && data.current_streak is int && data.current_streak >= 0
         && data.level_title is string && data.level_title.size() <= 64
+        && data.last_active is string && data.last_active.size() <= 32
         && data.created_at is timestamp;
     }
 
@@ -60,16 +65,16 @@ service cloud.firestore {
 
       // Ensure proper creation details (Verify matching UID and fresh stats)
       allow create: if (
-        isSignedIn() && 
-        isEmailVerified() &&
-        isValidId(uid) && 
-        request.auth.uid == uid && 
-        isValidUser(incoming()) &&
-        incoming().uid == request.auth.uid &&
-        incoming().total_xp == 0 &&
-        incoming().current_streak == 1 &&
-        incoming().level_title == "Scribble Novice" &&
-        incoming().created_at == request.time
+         isSignedIn() && 
+         isEmailVerified() &&
+         isValidId(uid) && 
+         request.auth.uid == uid && 
+         isValidUser(incoming()) &&
+         incoming().uid == request.auth.uid &&
+         incoming().total_xp == 0 &&
+         incoming().current_streak == 1 &&
+         incoming().level_title == "Scribble Novice" &&
+         incoming().created_at == request.time
       );
 
       // Multi-Tiered Update Capping
@@ -81,8 +86,8 @@ service cloud.firestore {
         incoming().uid == existing().uid &&
         incoming().email == existing().email &&
         incoming().created_at == existing().created_at && (
-          // Action: Daily Streak or earning XP via complete Quiz drills
-          incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'avatar_accent_color', 'username'])
+          // Action: Daily Streak or earning XP via complete Quiz drills or changing themes/avatar/university
+          incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'first_name', 'last_name', 'university', 'year', 'theme', 'avatar_emoji', 'last_active'])
         )
       );
 
@@ -107,7 +112,6 @@ service cloud.firestore {
     }
 
     match /study_sets/{setId} {
-      // Direct Get and Query-level protection (preventing arbitrary client scraping)
       allow get: if isSignedIn() && isValidId(setId) && resource.data.owner_id == request.auth.uid;
       allow list: if isSignedIn() && resource.data.owner_id == request.auth.uid;
 

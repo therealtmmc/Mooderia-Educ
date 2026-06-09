@@ -9,10 +9,14 @@ import QuizzesView from "./components/QuizzesView";
 import ProfileView from "./components/ProfileView";
 import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
-import PinLockView from "./components/PinLockView";
+import OnboardingModal from "./components/OnboardingModal";
 import MobileRestrictionView from "./components/MobileRestrictionView";
 import DesktopLandingView from "./components/DesktopLandingView";
 import AiCopilot from "./components/AiCopilot";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth, db } from "./firebase/config";
+import { checkUserDocExists } from "./firebase/authService";
+import { doc, getDoc } from "firebase/firestore";
 import { 
   FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
 } from "lucide-react";
@@ -52,8 +56,60 @@ export default function App() {
     return saved === "true";
   });
 
-  // SECURITY PIN LOCK
-  const [hasPassedPin, setHasPassedPin] = useState(false);
+  // FIREBASE USER SESSION STATES
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [firebaseLoading, setFirebaseLoading] = useState(true);
+  const [isOnboardingActive, setIsOnboardingActive] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        try {
+          await user.reload();
+        } catch (e) {
+          console.error("Failed to reload user session state:", e);
+        }
+        
+        if (user.emailVerified) {
+          const exists = await checkUserDocExists(user.uid);
+          if (exists) {
+            try {
+              const snap = await getDoc(doc(db, "users", user.uid));
+              if (snap.exists()) {
+                const data = snap.data();
+                setProfile({
+                  name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || "Student Scholar",
+                  studentId: data.uid,
+                  institution: data.university || "Academic Institution",
+                  gradeLevel: data.year || "1st Year",
+                  avatarEmoji: data.avatar_emoji || "🤖",
+                  avatarGradientStart: "from-indigo-600",
+                  avatarGradientEnd: "to-fuchsia-600",
+                  university: data.university || "Academic Institution",
+                  program: `${data.year || "1st Year"} Track`,
+                  year: data.year || "1st Year",
+                  signedIn: true
+                });
+                setIsOnboardingActive(false);
+              }
+            } catch (e) {
+              console.error("Retrieve profile properties failed: ", e);
+            }
+          } else {
+            setIsOnboardingActive(true);
+          }
+        } else {
+          setIsOnboardingActive(false);
+        }
+      } else {
+        setProfile(prev => ({ ...prev, signedIn: false }));
+        setIsOnboardingActive(false);
+      }
+      setFirebaseLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
   // ONLINE/OFFLINE DETECT ENGINE
   const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -298,37 +354,75 @@ export default function App() {
     );
   }
 
-  // Check if student identity has authorized/signed in offline
-  if (!profile.signedIn) {
+  // SECURITY CHECKPOINTS
+  const isUserAuthenticated = firebaseUser && firebaseUser.emailVerified;
+
+  // Render sign in channels if no live verified user session exists
+  if (!isUserAuthenticated) {
     return (
       <SignInView 
-        onSignInComplete={(newProfile) => {
-          setFolders([]);
-          setQuizzes([]);
-          setAttempts([]);
-          setProfile(newProfile);
-          localStorage.setItem("mooderia_folders", JSON.stringify([]));
-          localStorage.setItem("mooderia_quizzes", JSON.stringify([]));
-          localStorage.setItem("mooderia_attempts", JSON.stringify([]));
-        }} 
+        onVerificationCheckSuccess={async () => {
+          const user = auth.currentUser;
+          if (user) {
+            await user.reload();
+            setFirebaseUser(user);
+            const exists = await checkUserDocExists(user.uid);
+            if (exists) {
+              const snap = await getDoc(doc(db, "users", user.uid));
+              if (snap.exists()) {
+                const data = snap.data();
+                setProfile({
+                  name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || "Student Scholar",
+                  studentId: data.uid,
+                  institution: data.university || "Academic Institution",
+                  gradeLevel: data.year || "1st Year",
+                  avatarEmoji: data.avatar_emoji || "🤖",
+                  avatarGradientStart: "from-indigo-600",
+                  avatarGradientEnd: "to-fuchsia-600",
+                  university: data.university || "Academic Institution",
+                  program: `${data.year || "1st Year"} Track`,
+                  year: data.year || "1st Year",
+                  signedIn: true
+                });
+                setIsOnboardingActive(false);
+              }
+            } else {
+              setIsOnboardingActive(true);
+            }
+          }
+        }}
       />
     );
   }
 
-  // SECURITY PIN BARRIER POST SIGN-IN
-  if (!hasPassedPin) {
+  // Intercept and load recruiting and profile builder onboarding modal if Firestore records are missing
+  if (isOnboardingActive && firebaseUser) {
     return (
-      <PinLockView 
-        isSetupMode={!profile.pinCode}
-        expectedPin={profile.pinCode}
-        studentName={profile.name}
-        onSuccess={(newPin) => {
-          if (newPin && !profile.pinCode) {
-            setProfile(prev => ({ ...prev, pinCode: newPin }));
-          }
-          setHasPassedPin(true);
+      <OnboardingModal
+        user={firebaseUser}
+        onOnboardingComplete={(newProfile) => {
+          setFolders([]);
+          setQuizzes([]);
+          setAttempts([]);
+          setProfile(newProfile);
+          setIsOnboardingActive(false);
+          localStorage.setItem("mooderia_folders", JSON.stringify([]));
+          localStorage.setItem("mooderia_quizzes", JSON.stringify([]));
+          localStorage.setItem("mooderia_attempts", JSON.stringify([]));
         }}
       />
+    );
+  }
+
+  // Loading barrier during active Firestore profile synchronization checks
+  if (isUserAuthenticated && !profile.signedIn && !isOnboardingActive) {
+    return (
+      <div className="fixed inset-0 bg-[#020512] flex flex-col items-center justify-center overflow-hidden z-[99999] select-none text-slate-100">
+        <div className="relative z-10 text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Establishing Core Portfolio Ledger...</p>
+        </div>
+      </div>
     );
   }
 
@@ -399,7 +493,7 @@ export default function App() {
                 <QuizzesView quizzes={quizzes} setQuizzes={setQuizzes} folders={folders} onQuizAttemptFinished={handleQuizAttemptFinished} />
               )}
               {activeTab === 'profile' && (
-                <ProfileView profile={profile} setProfile={setProfile} folders={folders} quizzes={quizzes} totalAttempts={attempts.length} />
+                <ProfileView profile={profile} setProfile={setProfile} folders={folders} quizzes={quizzes} totalAttempts={attempts.length} onLogout={() => auth.signOut()} />
               )}
               {activeTab === 'analytics' && (
                 <AnalyticsView attempts={attempts} folders={folders} quizzes={quizzes} />
@@ -566,7 +660,7 @@ export default function App() {
                   <QuizzesView quizzes={quizzes} setQuizzes={setQuizzes} folders={folders} onQuizAttemptFinished={handleQuizAttemptFinished} />
                 )}
                 {activeTab === 'profile' && (
-                  <ProfileView profile={profile} setProfile={setProfile} folders={folders} quizzes={quizzes} totalAttempts={attempts.length} />
+                  <ProfileView profile={profile} setProfile={setProfile} folders={folders} quizzes={quizzes} totalAttempts={attempts.length} onLogout={() => auth.signOut()} />
                 )}
                 {activeTab === 'analytics' && (
                   <AnalyticsView attempts={attempts} folders={folders} quizzes={quizzes} />
@@ -679,6 +773,7 @@ export default function App() {
                 folders={folders} 
                 quizzes={quizzes}
                 totalAttempts={attempts.length}
+                onLogout={() => auth.signOut()}
               />
             )}
             
