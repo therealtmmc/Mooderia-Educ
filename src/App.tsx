@@ -296,8 +296,7 @@ export default function App() {
             <div className="absolute inset-0 rounded-2xl bg-indigo-500/20 blur-xl animate-pulse" />
             
             <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-950 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-950/50 p-3">
-              <img src="/logo.png" alt="Mooderia Education Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-              <Sparkles className="w-9 h-9 text-indigo-400 animate-pulse hidden" />
+              <Sparkles className="w-9 h-9 text-indigo-400 animate-pulse" />
             </div>
           </motion.div>
 
@@ -436,8 +435,7 @@ export default function App() {
         <header className="fixed top-0 left-0 right-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 px-4 pb-2 pt-[max(env(safe-area-inset-top),2.5rem)] flex items-center justify-between z-30">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-indigo-600 w-7 h-7 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-              <ShieldCheck className="w-4 h-4 text-white fill-current hidden" />
+              <ShieldCheck className="w-4 h-4 text-white fill-current" />
             </div>
             <span className="text-[10px] font-mono font-black tracking-[0.2em] text-white">M.EDUCATION</span>
           </div>
@@ -547,8 +545,7 @@ export default function App() {
           <div className="flex flex-col items-center gap-8">
             {/* Minimal brand icon */}
             <div className="p-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md w-11 h-11 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-              <ShieldCheck className="w-5 h-5 text-white hidden" />
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
 
             {/* Vertical Rail Indicators */}

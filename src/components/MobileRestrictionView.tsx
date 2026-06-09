@@ -42,8 +42,7 @@ export default function MobileRestrictionView() {
               transition={{ duration: 0.6, ease: "easeOut" }}
               className="w-20 h-20 rounded-3xl bg-violet-600 flex items-center justify-center shadow-2xl shadow-violet-600/30 overflow-hidden p-4"
             >
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-              <ShieldCheck className="w-10 h-10 text-white hidden" />
+              <ShieldCheck className="w-10 h-10 text-white" />
             </motion.div>
             
             <motion.h1 
