@@ -4,7 +4,8 @@ import { sound } from "../utils/sound";
 import { 
   Gamepad2, Users, Trophy, Play, ArrowRight, ShieldCheck, 
   Crown, Flame, Star, Volume2, Award, LogOut, CheckCircle, 
-  XCircle, ArrowLeft, RefreshCw, Layers
+  XCircle, ArrowLeft, RefreshCw, Layers, Plus, Trash2, Edit2, 
+  Save, X, PlusCircle, HelpCircle, Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -83,6 +84,41 @@ const PRE_MADE_DECKS = [
 export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   // Websocket instance references
   const ws = useRef<WebSocket | null>(null);
+  
+  // Custom interactive arenas persistent state
+  const [customArenas, setCustomArenas] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    cards: {
+      question: string;
+      options: string[];
+      answer: string;
+      clue?: string;
+      explanation?: string;
+    }[];
+  }[]>(() => {
+    try {
+      const stored = localStorage.getItem("mooderia_custom_arenas");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // State to track if we're currently in the Arena Creator/Editor view
+  const [editorDeck, setEditorDeck] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    cards: {
+      question: string;
+      options: string[];
+      answer: string;
+      clue?: string;
+      explanation?: string;
+    }[];
+  } | null>(null);
   
   // Connection states
   const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
@@ -264,6 +300,162 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     handlePop();
   };
 
+  const handleCreateNewArena = () => {
+    handlePop();
+    setEditorDeck({
+      id: "arena_" + Date.now(),
+      name: "",
+      description: "",
+      cards: [
+        {
+          question: "",
+          options: ["", "", "", ""],
+          answer: "",
+          clue: "",
+          explanation: ""
+        }
+      ]
+    });
+  };
+
+  const handleEditArena = (arena: any) => {
+    handlePop();
+    // Create a deep copy of the arena to avoid state mutation
+    setEditorDeck(JSON.parse(JSON.stringify(arena)));
+  };
+
+  const handleDeleteArena = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this custom Arena deck?")) return;
+    handlePop();
+    const updated = customArenas.filter(a => a.id !== id);
+    setCustomArenas(updated);
+    localStorage.setItem("mooderia_custom_arenas", JSON.stringify(updated));
+  };
+
+  const handleSaveArena = () => {
+    if (!editorDeck) return;
+    if (!editorDeck.name.trim()) {
+      alert("Please enter a name for your custom Arena.");
+      return;
+    }
+
+    // Check that there is at least 1 question
+    if (editorDeck.cards.length === 0) {
+      alert("Please add at least one question to your custom Arena.");
+      return;
+    }
+
+    // Validate cards
+    for (let i = 0; i < editorDeck.cards.length; i++) {
+      const card = editorDeck.cards[i];
+      if (!card.question.trim()) {
+        alert(`Question ${i + 1} is empty. Please enter a valid question.`);
+        return;
+      }
+      
+      // Ensure all 4 options are populated
+      for (let oIdx = 0; oIdx < 4; oIdx++) {
+        if (!card.options[oIdx] || !card.options[oIdx].trim()) {
+          alert(`Option ${oIdx + 1} in Question ${i + 1} is empty. All 4 choices must be filled.`);
+          return;
+        }
+      }
+
+      // Check if correct answer is selected
+      if (!card.answer) {
+        alert(`Please select the correct answer option for Question ${i + 1}.`);
+        return;
+      }
+    }
+
+    handleChime();
+    let updated;
+    const exists = customArenas.find(a => a.id === editorDeck.id);
+    if (exists) {
+      updated = customArenas.map(a => a.id === editorDeck.id ? editorDeck : a);
+    } else {
+      updated = [editorDeck, ...customArenas];
+    }
+
+    setCustomArenas(updated);
+    localStorage.setItem("mooderia_custom_arenas", JSON.stringify(updated));
+    setEditorDeck(null);
+  };
+
+  const handleCancelEditor = () => {
+    handlePop();
+    if (window.confirm("Abandon changes? Unsaved edits will be lost.")) {
+      setEditorDeck(null);
+    }
+  };
+
+  const handleAddQuestionToEditor = () => {
+    if (!editorDeck) return;
+    handlePop();
+    setEditorDeck({
+      ...editorDeck,
+      cards: [
+        ...editorDeck.cards,
+        {
+          question: "",
+          options: ["", "", "", ""],
+          answer: "",
+          clue: "",
+          explanation: ""
+        }
+      ]
+    });
+  };
+
+  const handleRemoveQuestionFromEditor = (index: number) => {
+    if (!editorDeck) return;
+    handlePop();
+    const updatedCards = editorDeck.cards.filter((_, i) => i !== index);
+    setEditorDeck({
+      ...editorDeck,
+      cards: updatedCards
+    });
+  };
+
+  const handleUpdateCardField = (cardIdx: number, field: string, value: any) => {
+    if (!editorDeck) return;
+    const updatedCards = [...editorDeck.cards];
+    if (field === "question" || field === "clue" || field === "explanation" || field === "answer") {
+      updatedCards[cardIdx] = {
+        ...updatedCards[cardIdx],
+        [field]: value
+      };
+    }
+    setEditorDeck({
+      ...editorDeck,
+      cards: updatedCards
+    });
+  };
+
+  const handleUpdateCardOption = (cardIdx: number, optionIdx: number, value: string) => {
+    if (!editorDeck) return;
+    const updatedCards = [...editorDeck.cards];
+    const updatedOptions = [...updatedCards[cardIdx].options];
+    
+    const prevOptionValue = updatedOptions[optionIdx];
+    updatedOptions[optionIdx] = value;
+    
+    // If the changed option was previously marked as the correct answer, auto update structural link too!
+    const isAnswer = updatedCards[cardIdx].answer === prevOptionValue;
+    
+    updatedCards[cardIdx] = {
+      ...updatedCards[cardIdx],
+      options: updatedOptions,
+      answer: isAnswer ? value : updatedCards[cardIdx].answer
+    };
+    
+    setEditorDeck({
+      ...editorDeck,
+      cards: updatedCards
+    });
+  };
+
   const handleHostRoom = (deckName: string, cardsList: any[]) => {
     handleTick();
     setRole("host");
@@ -328,17 +520,262 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   const currentMatchedPlayer = scoreboard.find(p => p.playerId === myPlayerId);
 
   // -------------------------------------------------------------
+  // RENDER DOCK: ARENA BUILDER / EDITOR
+  // -------------------------------------------------------------
+  if (editorDeck !== null) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-8 bg-slate-950/70 border border-slate-900 p-6 sm:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-505 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Editor Header */}
+        <div className="flex items-center justify-between border-b border-slate-900 pb-4 relative z-10">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-indigo-300 font-mono text-[9px] uppercase font-bold">
+              <Gamepad2 className="w-3 h-3" />
+              <span>Multiplayer Build Console</span>
+            </div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+              ARENA <span className="text-indigo-400">BUILDER</span>
+            </h2>
+          </div>
+          
+          <button
+            onClick={handleCancelEditor}
+            className="p-2 border border-slate-950 hover:border-slate-800 text-slate-500 hover:text-white rounded-xl transition-all cursor-pointer"
+            title="Cancel and Exit Builder"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Basic Deck Metadata */}
+        <div className="bg-slate-900/40 p-5 rounded-2xl border border-slate-900 space-y-4 relative z-10">
+          <div>
+            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest block mb-1.5 font-bold">Arena Name / Subject Cover</label>
+            <input 
+              type="text" 
+              required
+              placeholder="e.g. AI Ethics & Advanced Neural Networks Bowl"
+              value={editorDeck.name}
+              onChange={(e) => setEditorDeck({ ...editorDeck, name: e.target.value })}
+              className="w-full text-sm text-white bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-550 transition-all font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest block mb-1.5 font-bold">Brief Deck Summary / Description</label>
+            <textarea
+              placeholder="Provide a competitive description detailing covered metrics, protocols, or exam courses."
+              value={editorDeck.description}
+              onChange={(e) => setEditorDeck({ ...editorDeck, description: e.target.value })}
+              className="w-full text-sm text-white bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-555 h-20 transition-all resize-none leading-relaxed"
+            />
+          </div>
+        </div>
+
+        {/* List of Game Cards Questions */}
+        <div className="space-y-6 relative z-10">
+          <div className="flex items-center justify-between border-b border-slate-900 pb-2">
+            <h3 className="text-xs font-mono text-slate-400 tracking-wider font-bold uppercase">
+              Challenge Questions ({editorDeck.cards.length})
+            </h3>
+            <button
+              onClick={handleAddQuestionToEditor}
+              className="text-xs font-mono text-indigo-400 hover:text-indigo-305 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Add Question</span>
+            </button>
+          </div>
+
+          <div className="space-y-8">
+            {editorDeck.cards.map((card, cardIdx) => {
+              return (
+                <div 
+                  key={cardIdx}
+                  className="bg-slate-900/20 border border-slate-900 p-6 rounded-2xl space-y-6 relative"
+                >
+                  {/* Card Section Header */}
+                  <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                    <span className="text-xs font-mono text-indigo-400 font-black">
+                      #Question CHALLENGE {cardIdx + 1}
+                    </span>
+                    {editorDeck.cards.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveQuestionFromEditor(cardIdx)}
+                        className="text-[10px] font-mono text-rose-450 hover:text-rose-400 font-bold flex items-center gap-1 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove Question</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Question Title */}
+                  <div>
+                    <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest block mb-1.5 font-bold">Challenge Question Prompt</label>
+                    <input 
+                      type="text" 
+                      placeholder="Enter the question query that matches player screen options"
+                      value={card.question}
+                      onChange={(e) => handleUpdateCardField(cardIdx, "question", e.target.value)}
+                      className="w-full text-sm text-white bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-505 transition-all font-semibold"
+                    />
+                  </div>
+
+                  {/* Options Grid */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest block font-bold">
+                        Choices Options (Requires exactly 4)
+                      </label>
+                      <span className="text-[9px] font-mono text-slate-500 uppercase">
+                        Select one option check as correct answer
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {card.options.map((opt, optIdx) => {
+                        const style = optionStyles[optIdx];
+                        const isCorrect = card.answer !== "" && card.answer === opt;
+
+                        return (
+                          <div 
+                            key={optIdx}
+                            className={`flex items-center gap-2.5 bg-slate-950 p-2 border border-slate-850 rounded-xl transition-all ${
+                              isCorrect 
+                                ? "ring-2 ring-emerald-500/50 border-emerald-500/50" 
+                                : "focus-within:border-slate-700"
+                            }`}
+                          >
+                            {/* Shape indicator representing active gameplay shape symbols */}
+                            <span className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center font-black text-sm select-none shrink-0">
+                              {style.shape}
+                            </span>
+
+                            {/* Option Input */}
+                            <input 
+                              type="text" 
+                              placeholder={`Option choice ${optIdx + 1}`}
+                              value={opt}
+                              onChange={(e) => handleUpdateCardOption(cardIdx, optIdx, e.target.value)}
+                              className="bg-transparent text-xs font-semibold text-white focus:outline-none w-full min-w-0"
+                            />
+
+                            {/* Mark Correct Option Toggle */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePop();
+                                if (opt.trim()) {
+                                  handleUpdateCardField(cardIdx, "answer", opt);
+                                } else {
+                                  alert("Please specify option value before marking as correct!");
+                                }
+                              }}
+                              className={`p-1.5 rounded-lg border text-xs cursor-pointer transition-all shrink-0 ${
+                                isCorrect 
+                                  ? "bg-emerald-950 border-emerald-500 text-emerald-400 font-bold"
+                                  : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400"
+                              }`}
+                              title={isCorrect ? "Correct answer" : "Select as correct"}
+                            >
+                              <CheckCircle className={`w-3.5 h-3.5 ${isCorrect ? "fill-current text-emerald-400" : ""}`} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Optional Metadata Row (Clue, Explanation) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono">
+                    <div>
+                      <div className="flex items-center gap-1 mb-1">
+                        <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                        <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">Visual Clue (Optional)</label>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Height determines lookup log"
+                        value={card.clue || ""}
+                        onChange={(e) => handleUpdateCardField(cardIdx, "clue", e.target.value)}
+                        className="w-full text-xs text-white bg-slate-950 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition-all font-sans"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1 mb-1">
+                        <Info className="w-3.5 h-3.5 text-slate-400" />
+                        <label className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">Explanation (Optional)</label>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Balanced trees are height-bounded by log2(N)"
+                        value={card.explanation || ""}
+                        onChange={(e) => handleUpdateCardField(cardIdx, "explanation", e.target.value)}
+                        className="w-full text-xs text-white bg-slate-950 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition-all font-sans"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-center pt-2">
+            <button
+              onClick={handleAddQuestionToEditor}
+              type="button"
+              className="px-6 py-3 border border-dashed border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-950/5 hover:bg-indigo-950/15 text-indigo-400 text-xs font-mono font-bold rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Add Another Question Challenge</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Editor Bottom Actions */}
+        <div className="pt-6 border-t border-slate-900 flex justify-end gap-3 relative z-10">
+          <button
+            onClick={handleCancelEditor}
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-mono font-bold cursor-pointer transition-colors"
+          >
+            Cancel
+          </button>
+          
+          <button
+            onClick={handleSaveArena}
+            className="px-6 py-2.5 bg-indigo-650 hover:bg-indigo-600 border-t border-white/20 text-white rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Custom Arena</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
   // RENDER DOCK 1: CHANNELS SELECTION DASHBOARD
   // -------------------------------------------------------------
   if (role === null) {
-    // Combine custom user decks with preloaded trivia templates
+    // Combine custom user decks with preloaded trivia templates and our created customArenas
     const hostableDecks = [
-      ...PRE_MADE_DECKS,
+      ...customArenas.map((a) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description || `Custom Arena with ${a.cards.length} interactive questions.`,
+        cards: a.cards,
+        isCustomArena: true
+      })),
+      ...(profile.signedIn ? [] : PRE_MADE_DECKS),
       ...quizzes.map((q) => ({
         id: q.id,
         name: q.name,
         description: q.description || `Study materials compilation of ${q.cards.length} spaced questions.`,
-        cards: q.cards
+        cards: q.cards,
+        isCustomArena: false
       }))
     ];
 
@@ -422,9 +859,19 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
         {/* List of Hostable Study Materials */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
-            <Layers className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-lg font-bold font-display text-white uppercase tracking-tight">HOST A NEW BATTLE SESSION</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-900 pb-3 gap-3">
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-450" />
+              <h3 className="text-lg font-bold font-display text-white uppercase tracking-tight">HOST A NEW BATTLE SESSION</h3>
+            </div>
+            
+            <button
+              onClick={handleCreateNewArena}
+              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 self-start cursor-pointer transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>CREATE CUSTOM ARENA</span>
+            </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -445,17 +892,43 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
                   <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{deck.description}</p>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 mt-2 pt-3 border-t border-slate-900/65">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 pt-3 border-t border-slate-900/65">
                   <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
-                    {deck.id.startsWith("pre_made") ? "🏆 ACADEMIC BOWLS PRESET" : "📂 PERSONAL CABINET IMPORT"}
+                    {deck.isCustomArena 
+                      ? "⚔️ CUSTOM BATTLE ARENA" 
+                      : deck.id.startsWith("pre_made") 
+                        ? "🏆 ACADEMIC BOWLS PRESET" 
+                        : "📂 PERSONAL CABINET IMPORT"}
                   </div>
-                  <button
-                    onClick={() => handleHostRoom(deck.name, deck.cards)}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-mono font-bold text-indigo-450 hover:text-indigo-400 cursor-pointer transition-all flex items-center gap-1.5"
-                  >
-                    <span>Host Room</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  
+                  <div className="flex items-center gap-2 justify-end self-end sm:self-auto">
+                    {deck.isCustomArena && (
+                      <>
+                        <button
+                          onClick={() => handleEditArena(deck)}
+                          className="p-2 bg-slate-900 hover:bg-slate-800 text-indigo-400 hover:text-indigo-300 border border-slate-800 rounded-lg cursor-pointer transition-colors"
+                          title="Edit Arena"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteArena(deck.id, e)}
+                          className="p-2 bg-slate-900 hover:bg-rose-950/20 text-rose-405 hover:text-rose-400 border border-slate-800 hover:border-rose-900/30 rounded-lg cursor-pointer transition-colors"
+                          title="Delete Arena"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => handleHostRoom(deck.name, deck.cards)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-805 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-mono font-bold text-indigo-450 hover:text-indigo-400 cursor-pointer transition-all flex items-center gap-1.5"
+                    >
+                      <span>Host Room</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -585,6 +1058,11 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
               Q. {currentQuestionIdx + 1} of {totalQuestions}
             </span>
             <span className="text-sm font-semibold text-slate-350 tracking-tight hidden sm:inline truncate max-w-xs">{deckTitle}</span>
+            {role === "host" && (
+              <span className="px-3 py-1.5 bg-indigo-650/30 border border-indigo-500/35 text-indigo-300 font-mono text-xs font-bold rounded-lg uppercase tracking-wider animate-pulse whitespace-nowrap">
+                CODE: {roomCode}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -691,6 +1169,14 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
     return (
       <div className="max-w-2xl mx-auto space-y-6">
+        {role === "host" && (
+          <div className="flex justify-between items-center bg-slate-950/85 px-5 py-3 border border-slate-900 rounded-2xl">
+            <span className="text-xs font-mono text-slate-455 text-slate-400 uppercase font-semibold">Active Session Console</span>
+            <span className="px-3 py-1 bg-indigo-650/30 border border-indigo-500/35 text-indigo-300 font-mono text-xs font-bold rounded-lg uppercase tracking-wider animate-pulse font-bold">
+              LOBBY CODE: {roomCode}
+            </span>
+          </div>
+        )}
         
         {/* Reveal Results Banner Card */}
         <div className="bg-slate-950 border border-slate-900 p-6 sm:p-8 rounded-3xl relative overflow-hidden text-center space-y-4 shadow-2xl">
@@ -831,6 +1317,14 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
     return (
       <div className="max-w-2xl mx-auto space-y-8 text-center pb-24">
+        {role === "host" && (
+          <div className="flex justify-between items-center bg-slate-950/85 px-5 py-3 border border-slate-900 rounded-2xl text-left">
+            <span className="text-xs font-mono text-slate-400 uppercase font-semibold">Active Session Console</span>
+            <span className="px-3 py-1 bg-indigo-650/30 border border-indigo-500/35 text-indigo-300 font-mono text-xs font-bold rounded-lg uppercase tracking-wider animate-pulse font-bold">
+              LOBBY CODE: {roomCode}
+            </span>
+          </div>
+        )}
         
         {/* Banner with crown */}
         <div className="space-y-4">

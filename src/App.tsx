@@ -211,6 +211,28 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Clear pre-populated guest mock data when user is authenticated (creating an account or logging in)
+  useEffect(() => {
+    if (firebaseUser) {
+      const hasDummyFolders = folders.some(f => f.id === "f1" || f.id === "f2" || f.id === "f3");
+      const hasDummyQuizzes = quizzes.some(q => q.id === "q1" || q.id === "q2");
+      const hasDummyAttempts = attempts.some(a => a.id === "att_1" || a.id === "att_2" || a.id === "att_3" || a.id === "att_4");
+
+      if (hasDummyFolders) {
+        setFolders([]);
+        localStorage.setItem("mooderia_folders", JSON.stringify([]));
+      }
+      if (hasDummyQuizzes) {
+        setQuizzes([]);
+        localStorage.setItem("mooderia_quizzes", JSON.stringify([]));
+      }
+      if (hasDummyAttempts) {
+        setAttempts([]);
+        localStorage.setItem("mooderia_attempts", JSON.stringify([]));
+      }
+    }
+  }, [firebaseUser, folders, quizzes, attempts]);
+
   // Save states modifications automatically 
   useEffect(() => {
     localStorage.setItem("mooderia_profile", JSON.stringify(profile));
