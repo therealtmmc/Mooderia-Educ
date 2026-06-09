@@ -356,7 +356,10 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       const socket = new WebSocket(wsUrl);
       ws.current = socket;
 
+      let hasConnectedSuccessfully = false;
+
       socket.onopen = () => {
+        hasConnectedSuccessfully = true;
         setActiveChannel("ws");
         setConnectionStatus("connected");
         console.log("[WS Connection] WebSocket handshake completed successfully.");
@@ -440,26 +443,26 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       };
 
       socket.onclose = () => {
-        setConnectionStatus("disconnected");
         console.warn("[WS] Connection lost.");
-        if (onFailure) {
-          onFailure();
+        if (!hasConnectedSuccessfully) {
+          if (onFailure) onFailure();
+        } else {
+          // Disconnected mid-session, try falling back to HTTP to keep going
+          initiateHttpFallback();
         }
       };
 
       socket.onerror = (err) => {
         console.error("[WS] Pipeline mismatch error:", err);
-        if (onFailure) {
-          onFailure();
-        } else {
-          // Switch to HTTP fallback immediately if socket fails during run
-          initiateHttpFallback();
-        }
       };
 
     } catch (err: any) {
-      setConnectionStatus("disconnected");
-      setErrorText(`WebSocket configuration crash: ${err.message}`);
+      if (onFailure) {
+        onFailure();
+      } else {
+        initiateHttpFallback();
+      }
+      console.error(`WebSocket configuration crash: ${err.message}`);
     }
   };
 
