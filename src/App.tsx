@@ -30,41 +30,62 @@ export default function App() {
   });
 
   const [folders, setFolders] = useState<FolderCabinet[]>(() => {
+    try {
+      const profSaved = localStorage.getItem("mooderia_profile");
+      if (profSaved) {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) {
+          const saved = localStorage.getItem("mooderia_folders");
+          if (saved) {
+            const list = JSON.parse(saved);
+            return list.filter((f: any) => f.id !== "f1" && f.id !== "f2" && f.id !== "f3");
+          }
+          return [];
+        }
+      }
+    } catch (e) {}
     const saved = localStorage.getItem("mooderia_folders");
     if (saved) return JSON.parse(saved);
-    const profSaved = localStorage.getItem("mooderia_profile");
-    if (profSaved) {
-      try {
-        const p = JSON.parse(profSaved);
-        if (p.signedIn) return [];
-      } catch (e) {}
-    }
     return initialFolders;
   });
 
   const [quizzes, setQuizzes] = useState<QuizDeck[]>(() => {
+    try {
+      const profSaved = localStorage.getItem("mooderia_profile");
+      if (profSaved) {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) {
+          const saved = localStorage.getItem("mooderia_quizzes");
+          if (saved) {
+            const list = JSON.parse(saved);
+            return list.filter((q: any) => q.id !== "q1" && q.id !== "q2");
+          }
+          return [];
+        }
+      }
+    } catch (e) {}
     const saved = localStorage.getItem("mooderia_quizzes");
     if (saved) return JSON.parse(saved);
-    const profSaved = localStorage.getItem("mooderia_profile");
-    if (profSaved) {
-      try {
-        const p = JSON.parse(profSaved);
-        if (p.signedIn) return [];
-      } catch (e) {}
-    }
     return initialQuizzes;
   });
 
   const [attempts, setAttempts] = useState<QuizAttempt[]>(() => {
+    try {
+      const profSaved = localStorage.getItem("mooderia_profile");
+      if (profSaved) {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) {
+          const saved = localStorage.getItem("mooderia_attempts");
+          if (saved) {
+            const list = JSON.parse(saved);
+            return list.filter((a: any) => !a.id.startsWith("att_") && a.id !== "att_1" && a.id !== "att_2" && a.id !== "att_3" && a.id !== "att_4");
+          }
+          return [];
+        }
+      }
+    } catch (e) {}
     const saved = localStorage.getItem("mooderia_attempts");
     if (saved) return JSON.parse(saved);
-    const profSaved = localStorage.getItem("mooderia_profile");
-    if (profSaved) {
-      try {
-        const p = JSON.parse(profSaved);
-        if (p.signedIn) return [];
-      } catch (e) {}
-    }
     return initialAttempts;
   });
 

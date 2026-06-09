@@ -218,6 +218,9 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
             }
 
             case "room_update": {
+              if (data.roomCode) {
+                setRoomCode(data.roomCode);
+              }
               setGameStatus(data.status);
               setCurrentQuestionIdx(data.currentQuestionIndex);
               setTotalQuestions(data.totalQuestions);
@@ -769,7 +772,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         cards: a.cards,
         isCustomArena: true
       })),
-      ...(profile.signedIn ? [] : PRE_MADE_DECKS),
+      ...(profile.signedIn || (profile.studentId && profile.studentId !== "STU-2026-9082" && !profile.studentId.startsWith("STU-")) ? [] : PRE_MADE_DECKS),
       ...quizzes.map((q) => ({
         id: q.id,
         name: q.name,
@@ -1051,6 +1054,25 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
     return (
       <div className="max-w-4xl mx-auto space-y-6">
+        {role === "host" && (
+          <div className="w-full bg-gradient-to-r from-violet-950/90 to-indigo-950/90 border border-indigo-500/30 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div className="text-left">
+                <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-bold leading-none">Hosting Active Battle Arena</p>
+                <h4 className="text-sm font-bold text-white uppercase tracking-tight">{deckTitle || "Study Deck Showdown"}</h4>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 px-4 py-2 rounded-xl">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Live Room Code:</span>
+              <span className="text-lg font-black text-indigo-300 tracking-wider font-mono select-all uppercase">
+                {roomCode || "----"}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Progress HUD bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-950 p-4 border border-slate-900 rounded-2xl">
           <div className="flex items-center gap-3">
@@ -1170,11 +1192,21 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         {role === "host" && (
-          <div className="flex justify-between items-center bg-slate-950/85 px-5 py-3 border border-slate-900 rounded-2xl">
-            <span className="text-xs font-mono text-slate-455 text-slate-400 uppercase font-semibold">Active Session Console</span>
-            <span className="px-3 py-1 bg-indigo-650/30 border border-indigo-500/35 text-indigo-300 font-mono text-xs font-bold rounded-lg uppercase tracking-wider animate-pulse font-bold">
-              LOBBY CODE: {roomCode}
-            </span>
+          <div className="w-full bg-gradient-to-r from-violet-950/90 to-indigo-950/90 border border-indigo-500/30 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div className="text-left">
+                <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-bold leading-none">Hosting Active Battle Arena</p>
+                <h4 className="text-sm font-bold text-white uppercase tracking-tight">{deckTitle || "Study Deck Showdown"}</h4>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 px-4 py-2 rounded-xl">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Live Room Code:</span>
+              <span className="text-lg font-black text-indigo-300 tracking-wider font-mono select-all uppercase">
+                {roomCode || "----"}
+              </span>
+            </div>
           </div>
         )}
         
@@ -1318,11 +1350,21 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     return (
       <div className="max-w-2xl mx-auto space-y-8 text-center pb-24">
         {role === "host" && (
-          <div className="flex justify-between items-center bg-slate-950/85 px-5 py-3 border border-slate-900 rounded-2xl text-left">
-            <span className="text-xs font-mono text-slate-400 uppercase font-semibold">Active Session Console</span>
-            <span className="px-3 py-1 bg-indigo-650/30 border border-indigo-500/35 text-indigo-300 font-mono text-xs font-bold rounded-lg uppercase tracking-wider animate-pulse font-bold">
-              LOBBY CODE: {roomCode}
-            </span>
+          <div className="w-full bg-gradient-to-r from-violet-950/90 to-indigo-950/90 border border-indigo-500/30 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div className="text-left">
+                <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-bold leading-none">Hosting Active Battle Arena</p>
+                <h4 className="text-sm font-bold text-white uppercase tracking-tight">{deckTitle || "Study Deck Showdown"}</h4>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 px-4 py-2 rounded-xl">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Live Room Code:</span>
+              <span className="text-lg font-black text-indigo-300 tracking-wider font-mono select-all uppercase">
+                {roomCode || "----"}
+              </span>
+            </div>
           </div>
         )}
         
