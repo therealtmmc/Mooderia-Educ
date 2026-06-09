@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { createServer } from "http";
+import cors from "cors";
 import { setupWebSocketServer, rooms, prepareCards, compileRoomState, startQuestionTimer, revealAnswerAndProgress, broadcastRoomState } from "./src/server/websocket.ts";
 
 dotenv.config();
@@ -12,6 +13,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
   const server = createServer(app);
+
+  app.use(cors());
 
   setupWebSocketServer(server);
 

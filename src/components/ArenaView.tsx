@@ -195,7 +195,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         })
       });
       
-      // Safe parsing of response text in case of HTML error pages
       const rawText = await res.text();
       if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
         console.error("[Network Error] Received HTML instead of JSON for room creation:", rawText);
@@ -228,7 +227,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         })
       });
       
-      // Safe parsing of response text in case of HTML error pages
       const rawText = await res.text();
       if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
         console.error("[Network Error] Received HTML instead of JSON for joining:", rawText);
@@ -250,7 +248,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     }
   };
 
-  // High-frequency polling effect for HTTP mode fallback
   useEffect(() => {
     if (activeChannel === "http" && role !== null && roomCode) {
       let active = true;
@@ -279,7 +276,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
             setCurrentQuestion(data.room.currentQuestion);
             setDeckTitle(data.room.deckTitle);
             
-            // Sync player-level feedback if round parameters are updated on server
             if (role === "player" && myPlayerId) {
               const pData = data.room.scoreboard.find((p: any) => p.playerId === myPlayerId);
               if (pData) {
@@ -323,7 +319,22 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     setErrorText(null);
 
     try {
-      const wsUrl = getBackendWsUrl();
+      // Create WebSockets instance securely with VITE_BACKEND_URL evaluation
+      let wsUrl = "";
+      const customBackendUrl = import.meta.env.VITE_BACKEND_URL;
+      
+      if (customBackendUrl) {
+        // Automatically upgrades https://onrender.com -> wss://onrender.com
+        const cleanBase = customBackendUrl.endsWith("/") ? customBackendUrl.slice(0, -1) : customBackendUrl;
+        const isSecureWs = cleanBase.startsWith("https:");
+        const wsProtocol = isSecureWs ? "wss:" : "ws:";
+        const wsHost = cleanBase.replace(/^https?:\/\//, "");
+        wsUrl = `${wsProtocol}//${wsHost}/multiplayer`;
+      } else {
+        // Fallback robust logic relying on standard or config utilities
+        wsUrl = getBackendWsUrl();
+      }
+
       console.log(`[WS Connection] Directing bridge to: ${wsUrl}`);
       
       const socket = new WebSocket(wsUrl);
