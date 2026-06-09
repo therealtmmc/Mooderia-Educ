@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { QuizDeck, StudentIdentity } from "../types";
 import { sound } from "../utils/sound";
+import { getBackendHttpUrl, getBackendWsUrl } from "../utils/config";
 import { 
   Gamepad2, Users, Trophy, Play, ArrowRight, ShieldCheck, 
   Crown, Flame, Star, Volume2, Award, LogOut, CheckCircle, 
@@ -84,6 +85,11 @@ const PRE_MADE_DECKS = [
 export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   // Websocket instance references
   const ws = useRef<WebSocket | null>(null);
+
+  // Dynamic Host resolution for supporting both absolute external and local backend hosts
+  const getBackendUrl = (path: string) => {
+    return getBackendHttpUrl(path);
+  };
   
   // Custom interactive arenas persistent state
   const [customArenas, setCustomArenas] = useState<{
@@ -178,7 +184,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const createRoomViaHttp = async (deckName: string, cardsList: any[]) => {
     try {
-      const res = await fetch("/api/arena/create", {
+      const res = await fetch(getBackendUrl("/api/arena/create"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -188,7 +194,15 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
           cards: cardsList
         })
       });
-      const data = await res.json();
+      
+      // Safe parsing of response text in case of HTML error pages
+      const rawText = await res.text();
+      if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
+        console.error("[Network Error] Received HTML instead of JSON for room creation:", rawText);
+        throw new Error("Server configuration error (the API returned HTML 404).");
+      }
+      
+      const data = JSON.parse(rawText);
       if (data.success) {
         setRoomCode(data.roomCode);
         setDeckTitle(data.deckTitle);
@@ -205,7 +219,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const joinRoomViaHttp = async (targetRoomCode: string) => {
     try {
-      const res = await fetch("/api/arena/join", {
+      const res = await fetch(getBackendUrl("/api/arena/join"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -213,7 +227,15 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
           nickname: myNickname
         })
       });
-      const data = await res.json();
+      
+      // Safe parsing of response text in case of HTML error pages
+      const rawText = await res.text();
+      if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
+        console.error("[Network Error] Received HTML instead of JSON for joining:", rawText);
+        throw new Error("Server configuration error (the API returned HTML 404).");
+      }
+
+      const data = JSON.parse(rawText);
       if (data.success) {
         setRoomCode(data.roomCode);
         setMyPlayerId(data.playerId);
@@ -234,12 +256,19 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       let active = true;
       const poll = async () => {
         try {
-          const res = await fetch("/api/arena/status", {
+          const res = await fetch(getBackendUrl("/api/arena/status"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ roomCode, playerId: myPlayerId })
           });
-          const data = await res.json();
+          
+          const rawText = await res.text();
+          if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
+            console.error("[Status Polling] Received HTML instead of JSON status:", rawText);
+            return;
+          }
+
+          const data = JSON.parse(rawText);
           if (!active) return;
           if (data.success && data.room) {
             setGameStatus(data.room.status);
@@ -284,7 +313,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   }, [activeChannel, role, roomCode, myPlayerId, answeredIndex]);
 
   // Create or Join WebSockets connection channel
-  const connectToServer = (onSuccess: (socket: WebSocket) => void) => {
+  const connectToServer = (onSuccess: (socket: WebSocket) => void, onFailure?: () => void) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       onSuccess(ws.current);
       return;
@@ -294,10 +323,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     setErrorText(null);
 
     try {
-      const isSecure = window.location.protocol === "https:";
-      const wsProtocol = isSecure ? "wss:" : "ws:";
-      
-      const wsUrl = `${wsProtocol}//${window.location.host}/multiplayer`;
+      const wsUrl = getBackendWsUrl();
       console.log(`[WS Connection] Directing bridge to: ${wsUrl}`);
       
       const socket = new WebSocket(wsUrl);
@@ -389,12 +415,19 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       socket.onclose = () => {
         setConnectionStatus("disconnected");
         console.warn("[WS] Connection lost.");
+        if (onFailure) {
+          onFailure();
+        }
       };
 
       socket.onerror = (err) => {
         console.error("[WS] Pipeline mismatch error:", err);
-        // Switch to HTTP fallback immediately if socket fails during run
-        initiateHttpFallback();
+        if (onFailure) {
+          onFailure();
+        } else {
+          // Switch to HTTP fallback immediately if socket fails during run
+          initiateHttpFallback();
+        }
       };
 
     } catch (err: any) {
@@ -412,7 +445,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         }
       } else {
         try {
-          await fetch("/api/arena/leave", {
+          await fetch(getBackendUrl("/api/arena/leave"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -609,20 +642,33 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       }
     }, 4500);
 
-    connectToServer((socket) => {
-      clearTimeout(wsTimeout);
-      if (wsTimedOut) return;
-      
-      socket.send(JSON.stringify({
-        type: "create_room",
-        data: {
-          ownerId: profile.studentId || "HOST_UID",
-          nickname: myNickname,
-          deckTitle: deckName,
-          cards: cardsList
+    connectToServer(
+      (socket) => {
+        clearTimeout(wsTimeout);
+        if (wsTimedOut) return;
+        
+        socket.send(JSON.stringify({
+          type: "create_room",
+          data: {
+            ownerId: profile.studentId || "HOST_UID",
+            nickname: myNickname,
+            deckTitle: deckName,
+            cards: cardsList
+          }
+        }));
+      },
+      () => {
+        clearTimeout(wsTimeout);
+        if (wsTimedOut) return;
+        wsTimedOut = true;
+        console.warn("[WS Host] Direct connection failure. Re-routing immediately through HTTP tunnel...");
+        if (ws.current) {
+          ws.current.close();
+          ws.current = null;
         }
-      }));
-    });
+        initiateHttpFallback(() => createRoomViaHttp(deckName, cardsList));
+      }
+    );
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -645,18 +691,31 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       }
     }, 4500);
 
-    connectToServer((socket) => {
-      clearTimeout(wsTimeout);
-      if (wsTimedOut) return;
+    connectToServer(
+      (socket) => {
+        clearTimeout(wsTimeout);
+        if (wsTimedOut) return;
 
-      socket.send(JSON.stringify({
-        type: "join_room",
-        data: {
-          roomCode: targetCode,
-          nickname: myNickname
+        socket.send(JSON.stringify({
+          type: "join_room",
+          data: {
+            roomCode: targetCode,
+            nickname: myNickname
+          }
+        }));
+      },
+      () => {
+        clearTimeout(wsTimeout);
+        if (wsTimedOut) return;
+        wsTimedOut = true;
+        console.warn("[WS Join] Direct connection failure. Requesting entry immediately via HTTP channel...");
+        if (ws.current) {
+          ws.current.close();
+          ws.current = null;
         }
-      }));
-    });
+        initiateHttpFallback(() => joinRoomViaHttp(targetCode));
+      }
+    );
   };
 
   const handleStartGame = async () => {
@@ -667,7 +726,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || role !== "host") return;
       try {
-        await fetch("/api/arena/start", {
+        await fetch(getBackendUrl("/api/arena/start"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode })
@@ -692,12 +751,19 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || !myPlayerId) return;
       try {
-        const res = await fetch("/api/arena/submit", {
+        const res = await fetch(getBackendUrl("/api/arena/submit"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode, playerId: myPlayerId, optionIndex: index })
         });
-        const data = await res.json();
+        
+        const rawText = await res.text();
+        if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
+          console.error("[Submit Answer] Received HTML instead of JSON:", rawText);
+          return;
+        }
+
+        const data = JSON.parse(rawText);
         if (data.success && data.feedback) {
           setRoundFeedback({
             submitted: true,
@@ -725,7 +791,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || role !== "host") return;
       try {
-        await fetch("/api/arena/next", {
+        await fetch(getBackendUrl("/api/arena/next"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode })
