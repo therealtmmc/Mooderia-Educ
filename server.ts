@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
@@ -8,9 +7,6 @@ import { createServer } from "http";
 import { setupWebSocketServer, rooms, prepareCards, compileRoomState, startQuestionTimer, revealAnswerAndProgress, broadcastRoomState } from "./src/server/websocket.ts";
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -465,12 +461,21 @@ Format for mode 'flashcards': [{"front":"concept", "back":"explanation"}]`;
     app.use(vite.middlewares);
     console.log("Vite development server middleware loaded.");
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    // 1) Safety Fallback Checker
+    const baseDir = process.cwd();
+    if (typeof baseDir !== "string" || !baseDir) {
+      console.error("[Fatal Error] process.cwd() is undefined or invalid. Cannot resolve static assets path.");
+      process.exit(1);
+    }
+    
+    // 2) Standard bulletproof path joining for both ESM and CJS Node.js contexts
+    const distPath = path.join(baseDir, "dist");
+    
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
-    console.log("Serving compiled static assets from dist/.");
+    console.log(`Serving compiled static assets from ${distPath}`);
   }
 
   server.listen(PORT, "0.0.0.0", () => {
