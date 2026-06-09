@@ -3,18 +3,20 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // Comprehensive Firebase connection configuration mapping
 const metaEnv = (import.meta as any).env || {};
 
 const firebaseConfig = {
-  apiKey: (metaEnv.VITE_FIREBASE_API_KEY as string) || "placeholder-api-key-for-local-first",
-  authDomain: (metaEnv.VITE_FIREBASE_AUTH_DOMAIN as string) || "placeholder-auth-domain.firebaseapp.com",
-  databaseURL: (metaEnv.VITE_FIREBASE_DATABASE_URL as string) || "https://placeholder-rtdb-default-rtdb.firebaseio.com",
-  projectId: (metaEnv.VITE_FIREBASE_PROJECT_ID as string) || "placeholder-project-id",
-  storageBucket: (metaEnv.VITE_FIREBASE_STORAGE_BUCKET as string) || "placeholder-storage-bucket.appspot.com",
-  messagingSenderId: (metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || "placeholder-sender-id",
-  appId: (metaEnv.VITE_FIREBASE_APP_ID as string) || "placeholder-app-id"
+  apiKey: (metaEnv.VITE_FIREBASE_API_KEY as string) || "AIzaSyCckNirrQerQ6PbMD7wJx8XLOAZQpXpk2k",
+  authDomain: (metaEnv.VITE_FIREBASE_AUTH_DOMAIN as string) || "mooderia-education-af839.firebaseapp.com",
+  databaseURL: (metaEnv.VITE_FIREBASE_DATABASE_URL as string) || "https://mooderia-education-af839-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: (metaEnv.VITE_FIREBASE_PROJECT_ID as string) || "mooderia-education-af839",
+  storageBucket: (metaEnv.VITE_FIREBASE_STORAGE_BUCKET as string) || "mooderia-education-af839.firebasestorage.app",
+  messagingSenderId: (metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || "967931234226",
+  appId: (metaEnv.VITE_FIREBASE_APP_ID as string) || "1:967931234226:web:10f93fa1c3c7309774c6ab",
+  measurementId: (metaEnv.VITE_FIREBASE_MEASUREMENT_ID as string) || "G-KPETXZ9CVE"
 };
 
 // Singleton initialization pattern to prevent duplicate instances
@@ -23,5 +25,15 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const rtdb = getDatabase(app);
+
+// Safe Analytics Initialization
+export let analytics: any = null;
+isSupported().then((supported) => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+}).catch((err) => {
+  console.warn("Analytics not supported or blocked: ", err);
+});
 
 export default app;
