@@ -942,6 +942,72 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   }
 
   // -------------------------------------------------------------
+  // RENDER DOCK 1.5: CONNECTION/ERROR FALLBACK VIEWS
+  // -------------------------------------------------------------
+  if (role !== null) {
+    if (connectionStatus === "connecting" || !roomCode) {
+      return (
+        <div className="max-w-xl mx-auto bg-slate-950/60 border border-slate-900 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
+          <div className="absolute inset-0 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 space-y-4">
+            <div className="mx-auto w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 relative">
+              <div className="absolute inset-x-0 inset-y-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+              <Users className="w-6 h-6 animate-pulse" />
+            </div>
+            <p className="text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-black">Establishing Secure Sync Tunnel</p>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Syncing with Battle Arena...</h2>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              Generating unique room credentials and spawning secure WebSocket threads on the centralized education ledger.
+            </p>
+            <div className="pt-4">
+              <button 
+                onClick={resetToDash}
+                className="px-4 py-2 border border-slate-800 rounded-xl bg-slate-900/40 text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-mono uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Cancel Link
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (connectionStatus === "disconnected" || errorText) {
+      return (
+        <div className="max-w-xl mx-auto bg-slate-950/60 border border-rose-950/40 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
+          <div className="relative z-10 space-y-4">
+            <div className="mx-auto w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <Users className="w-6 h-6" />
+            </div>
+            <p className="text-[10px] font-mono text-rose-400 uppercase tracking-widest font-black">Secure Link Severed</p>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Sync Failure</h2>
+            <p className="text-xs text-rose-300 bg-rose-950/20 px-4 py-2 border border-rose-900/30 rounded-xl font-mono leading-relaxed max-w-sm mx-auto">
+              {errorText || "Could not complete handshake protocol with the battle server. Please check your network connection or verify the room code."}
+            </p>
+            <div className="pt-4 flex justify-center gap-3">
+              <button 
+                onClick={resetToDash}
+                className="px-4 py-2 border border-slate-800 rounded-xl bg-slate-900/40 text-slate-400 hover:text-white hover:bg-slate-950 text-xs font-mono uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setErrorText(null);
+                  resetToDash();
+                }}
+                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white text-xs font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+              >
+                Reset Arena
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // -------------------------------------------------------------
   // RENDER DOCK 2: GAME LOBBY
   // -------------------------------------------------------------
   if (gameStatus === "lobby") {

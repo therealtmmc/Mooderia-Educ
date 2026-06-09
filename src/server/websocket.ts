@@ -39,12 +39,17 @@ export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on("upgrade", (request, socket, head) => {
-    const pathname = new URL(request.url || "", `http://${request.headers.host}`).pathname;
-    // Upgrade standard HTTP requests to WebSocket connection on port 3000
-    if (pathname === "/multiplayer" || pathname === "/") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-      });
+    try {
+      const parentUrl = request.headers.host ? `http://${request.headers.host}` : "http://localhost";
+      const pathname = new URL(request.url || "", parentUrl).pathname;
+      // Upgrade standard HTTP requests to WebSocket connection on port 3000
+      if (pathname === "/multiplayer" || pathname === "/") {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, request);
+        });
+      }
+    } catch (e) {
+      console.error("Upgrade parsing failure: ", e);
     }
   });
 
