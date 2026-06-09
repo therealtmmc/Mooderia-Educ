@@ -122,9 +122,32 @@ export function setupWebSocketServer(server: Server) {
     }
   });
 
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws: WebSocket) => {
+      const extWs = ws as any;
+      if (extWs.isAlive === false) {
+        console.log(`[Heartbeat] Terminating inactive socket connection.`);
+        return ws.terminate();
+      }
+      extWs.isAlive = false;
+      ws.ping();
+    });
+  }, 20000);
+
+  server.on("close", () => {
+    clearInterval(interval);
+  });
+
   wss.on("connection", (ws: WebSocket) => {
     const playerId = Math.random().toString(36).substring(2, 9);
     let currentRoomCode: string | null = null;
+    
+    const extWs = ws as any;
+    extWs.isAlive = true;
+
+    ws.on("pong", () => {
+      extWs.isAlive = true;
+    });
 
     ws.on("message", (message: string) => {
       try {

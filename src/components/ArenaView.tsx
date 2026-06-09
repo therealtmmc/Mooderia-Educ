@@ -607,7 +607,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         }
         initiateHttpFallback(() => createRoomViaHttp(deckName, cardsList));
       }
-    }, 2200);
+    }, 4500);
 
     connectToServer((socket) => {
       clearTimeout(wsTimeout);
@@ -643,7 +643,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         }
         initiateHttpFallback(() => joinRoomViaHttp(targetCode));
       }
-    }, 2200);
+    }, 4500);
 
     connectToServer((socket) => {
       clearTimeout(wsTimeout);
@@ -1037,9 +1037,9 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
                 <label className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mb-1">Room Access Code</label>
                 <input 
                   type="text" 
-                  maxLength={4} 
+                  maxLength={6} 
                   required
-                  placeholder="e.g. 1024"
+                  placeholder="e.g. 582914"
                   value={inputRoomCode}
                   onChange={(e) => setInputRoomCode(e.target.value.replace(/\D/g, ""))}
                   className="w-full text-center tracking-[0.2em] font-black text-white bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-500 transition-all uppercase"
