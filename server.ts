@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { createServer } from "http";
+import { setupWebSocketServer } from "./src/server/websocket.ts";
 
 dotenv.config();
 
@@ -13,6 +15,9 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const server = createServer(app);
+
+  setupWebSocketServer(server);
 
   // Set higher request size limits for snap uploads/high fidelity transcripts
   app.use(express.json({ limit: "15mb" }));
@@ -234,7 +239,7 @@ Format for mode 'flashcards': [{"front":"concept", "back":"explanation"}]`;
     console.log("Serving compiled static assets from dist/.");
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Mooderia Educ backend server running on http://localhost:${PORT}`);
   });
 }

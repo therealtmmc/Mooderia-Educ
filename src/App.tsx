@@ -6,19 +6,19 @@ import {
 import { sound } from "./utils/sound";
 import FoldersView from "./components/FoldersView";
 import QuizzesView from "./components/QuizzesView";
+import ArenaView from "./components/ArenaView";
 import ProfileView from "./components/ProfileView";
 import AnalyticsView from "./components/AnalyticsView";
 import SignInView from "./components/SignInView";
 import OnboardingModal from "./components/OnboardingModal";
 import MobileRestrictionView from "./components/MobileRestrictionView";
 import DesktopLandingView from "./components/DesktopLandingView";
-import AiCopilot from "./components/AiCopilot";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase/config";
 import { checkUserDocExists } from "./firebase/authService";
 import { doc, getDoc } from "firebase/firestore";
 import { 
-  FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet
+  FolderOpen, Brain, User, BarChart2, Volume2, VolumeX, ShieldCheck, Sparkles, Laptop, Smartphone, Tablet, Gamepad2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -31,21 +31,46 @@ export default function App() {
 
   const [folders, setFolders] = useState<FolderCabinet[]>(() => {
     const saved = localStorage.getItem("mooderia_folders");
-    return saved ? JSON.parse(saved) : initialFolders;
+    if (saved) return JSON.parse(saved);
+    const profSaved = localStorage.getItem("mooderia_profile");
+    if (profSaved) {
+      try {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) return [];
+      } catch (e) {}
+    }
+    return initialFolders;
   });
 
   const [quizzes, setQuizzes] = useState<QuizDeck[]>(() => {
     const saved = localStorage.getItem("mooderia_quizzes");
-    return saved ? JSON.parse(saved) : initialQuizzes;
+    if (saved) return JSON.parse(saved);
+    const profSaved = localStorage.getItem("mooderia_profile");
+    if (profSaved) {
+      try {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) return [];
+      } catch (e) {}
+    }
+    return initialQuizzes;
   });
 
   const [attempts, setAttempts] = useState<QuizAttempt[]>(() => {
     const saved = localStorage.getItem("mooderia_attempts");
-    return saved ? JSON.parse(saved) : initialAttempts;
+    if (saved) return JSON.parse(saved);
+    const profSaved = localStorage.getItem("mooderia_profile");
+    if (profSaved) {
+      try {
+        const p = JSON.parse(profSaved);
+        if (p.signedIn) return [];
+      } catch (e) {}
+    }
+    return initialAttempts;
   });
 
+
   // NAV SCREEN CONTROL
-  const [activeTab, setActiveTab] = useState<'folders' | 'quizzes' | 'profile' | 'analytics'>('folders');
+  const [activeTab, setActiveTab] = useState<'folders' | 'quizzes' | 'profile' | 'analytics' | 'arena'>('folders');
   
   // SPLASH LOADING INTRO SCREEN
   const [showSplash, setShowSplash] = useState(true);
@@ -240,21 +265,7 @@ export default function App() {
     }, ...prev]);
   };
 
-  const aiCopilotProps = {
-    appState: {
-      activeTab,
-      soundOn,
-      folders
-    },
-    onNavigate: handleTabChange,
-    onToggleSound: (enabled: boolean) => {
-       if (soundOn !== enabled) {
-         setSoundOn(enabled);
-         if (enabled) setTimeout(() => sound.playTick(), 80);
-       }
-    },
-    onCreateFolder: handleCreateFolder
-  };
+  // AI Assistant and copilot components deactivated as requested
 
   // Find css matches for current avatar backdrops
   const getCurrentGradientCss = () => {
@@ -496,6 +507,9 @@ export default function App() {
               {activeTab === 'analytics' && (
                 <AnalyticsView attempts={attempts} folders={folders} quizzes={quizzes} />
               )}
+              {activeTab === 'arena' && (
+                <ArenaView quizzes={quizzes} profile={profile} />
+              )}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -505,6 +519,7 @@ export default function App() {
           {[
             { id: "folders", label: "Work", icon: FolderOpen },
             { id: "quizzes", label: "Recalls", icon: Brain },
+            { id: "arena", label: "Arena", icon: Gamepad2 },
             { id: "analytics", label: "Stats", icon: BarChart2 },
             { id: "profile", label: "Id", icon: User }
           ].map(item => {
@@ -524,7 +539,6 @@ export default function App() {
             );
           })}
         </nav>
-        <AiCopilot {...aiCopilotProps} />
       </div>
     );
   }
@@ -553,6 +567,7 @@ export default function App() {
               {[
                 { id: "folders", label: "Workspace", icon: FolderOpen },
                 { id: "quizzes", label: "Recalls", icon: Brain },
+                { id: "arena", label: "Arena", icon: Gamepad2 },
                 { id: "analytics", label: "Analytics", icon: BarChart2 },
                 { id: "profile", label: "Profile", icon: User }
               ].map(item => {
@@ -615,7 +630,7 @@ export default function App() {
                 MOODERIA ACADEMIA PARTNERSHIP
               </span>
               <h2 className="text-xl font-bold font-display text-white mt-0.5 uppercase tracking-tight">
-                {activeTab === 'folders' ? "Workspace Cabinets" : activeTab === 'quizzes' ? "Active Recalls & Decks" : activeTab === 'profile' ? "Account Identity" : "Data Diagnostics"}
+                {activeTab === 'folders' ? "Workspace Cabinets" : activeTab === 'quizzes' ? "Active Recalls & Decks" : activeTab === 'arena' ? "Battle Quiz Arena" : activeTab === 'profile' ? "Account Identity" : "Data Diagnostics"}
               </h2>
             </div>
             
@@ -662,6 +677,9 @@ export default function App() {
                 {activeTab === 'analytics' && (
                   <AnalyticsView attempts={attempts} folders={folders} quizzes={quizzes} />
                 )}
+                {activeTab === 'arena' && (
+                  <ArenaView quizzes={quizzes} profile={profile} />
+                )}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -672,7 +690,6 @@ export default function App() {
             <span className="text-indigo-400">MOODERIA EDUCATION</span>
           </footer>
         </section>
-        <AiCopilot {...aiCopilotProps} />
       </div>
     );
   }
@@ -781,6 +798,13 @@ export default function App() {
                 quizzes={quizzes} 
               />
             )}
+
+            {activeTab === 'arena' && (
+              <ArenaView 
+                quizzes={quizzes} 
+                profile={profile} 
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -790,6 +814,7 @@ export default function App() {
         {[
           { id: "folders", label: "Workspace" },
           { id: "quizzes", label: "Recalls" },
+          { id: "arena", label: "Arena" },
           { id: "analytics", label: "Analytics" },
           { id: "profile", label: "Profile" }
         ].map(item => {
@@ -815,7 +840,7 @@ export default function App() {
         {/* SOUND CONTROLLER WITH ACTIVE SPINNING SYSTEM */}
         <button
           onClick={handleToggleSound}
-          className="w-11 h-11 flex items-center justify-center bg-slate-800/40 hover:bg-slate-755 border border-slate-700/30 rounded-full text-md transition-all cursor-pointer text-slate-400 hover:text-white"
+          className="w-11 h-11 flex items-center justify-center bg-slate-800/40 hover:bg-slate-700 border border-slate-700/30 rounded-full text-md transition-all cursor-pointer text-slate-400 hover:text-white"
           title={soundOn ? "Mute Acoustics Synth" : "Enable Acoustics Synth"}
         >
           {soundOn ? <Volume2 className="w-4 h-4 text-indigo-400 animate-pulse" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
@@ -838,7 +863,6 @@ export default function App() {
           </div>
         </div>
       </footer>
-      <AiCopilot {...aiCopilotProps} />
     </div>
   );
 }

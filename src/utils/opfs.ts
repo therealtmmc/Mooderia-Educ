@@ -164,3 +164,26 @@ export async function deleteFileFromOPFS(dirPath: string, fileName: string): Pro
     console.log(`[OPFS Fallback] Purged file "${fileName}" from memory node: "${normalizedPath}"`);
   }
 }
+
+/**
+ * Recursively clears the entire root of OPFS and all local memory stores.
+ */
+export async function clearOPFS(): Promise<void> {
+  if (await isOPFSSupported()) {
+    try {
+      const root = await navigator.storage.getDirectory();
+      for await (const name of (root as any).keys()) {
+        await root.removeEntry(name, { recursive: true });
+      }
+      console.log("[OPFS] Full dynamic recursive purge of root folder handle succeeded.");
+    } catch (err) {
+      console.warn("[OPFS] Native clean-up failed, bypassing to memory-flush: ", err);
+    }
+  }
+  
+  // Clear memory fallbacks
+  for (const k of Object.keys(memoryFileStore)) {
+    delete memoryFileStore[k];
+  }
+}
+

@@ -73,7 +73,7 @@ export default function MobileRestrictionView() {
             className="space-y-4"
           >
             <a 
-              href="https://drive.google.com/file/d/1K5KtJJxPJn7mO84u4HsmNqC0eOUcyrde/view?usp=drivesdk" 
+              href="https://install.page/mooderiaeducation" 
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-xl shadow-violet-600/20 hover:shadow-violet-600/40 hover:-translate-y-1"

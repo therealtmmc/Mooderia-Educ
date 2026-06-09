@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import { StudentIdentity, FolderCabinet, QuizDeck } from "../types";
 import { sound } from "../utils/sound";
-import { ShieldCheck, User, School, Hash, Landmark, Sparkles, Check, Edit2, Save, AlertCircle } from "lucide-react";
+import { ShieldCheck, User, School, Hash, Landmark, Sparkles, Check, Edit2, Save, AlertCircle, LogOut, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth, db } from "../firebase/config";
+import { deleteUser } from "firebase/auth";
+import { doc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { clearOPFS } from "../utils/opfs";
 
 interface ProfileViewProps {
   profile: StudentIdentity;
@@ -34,6 +38,9 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionMessage, setDeletionMessage] = useState<string | null>(null);
+  
   const [tempName, setTempName] = useState(profile.name);
   const [tempStudentId, setTempStudentId] = useState(profile.studentId);
   const [tempInstitution, setTempInstitution] = useState(profile.institution);
@@ -42,12 +49,86 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
 
   // Stats calculators
   const totalFolders = folders.length;
-  const totalMaterials = folders.reduce((sum, f) => sum + f.materials.length, 0);
-  const totalCardsCount = quizzes.reduce((sum, q) => sum + q.cards.length, 0);
+  const totalMaterials = folders.reduce((sum, f) => sum + (f.materials ? f.materials.length : 0), 0);
+  const totalCardsCount = quizzes.reduce((sum, q) => sum + (q.cards ? q.cards.length : 0), 0);
 
   const handlePop = () => sound.playPop();
   const handleTick = () => sound.playTick();
   const handleChime = () => sound.playChime();
+
+  const handleSignOutClick = () => {
+    handleTick();
+    setConfirmAction({
+      message: "Are you sure you want to sign out of Mooderia Education? Your offline file caches and state will be detached safely.",
+      onConfirm: async () => {
+        setConfirmAction(null);
+        localStorage.clear(); // Flush local cache so next logged user starts empty
+        await clearOPFS();
+        if (onLogout) {
+          onLogout();
+        } else {
+          await auth.signOut();
+        }
+        window.location.reload();
+      }
+    });
+  };
+
+  const handleDeleteAccountClick = () => {
+    handleTick();
+    setConfirmAction({
+      message: "WARNING: This action is permanent and completely IRREVERSIBLE. It will delete your profile document, all saved study sets/folders from Cloud Firestore, erase all offline files, clear browser states, and delete your email registration permanently.",
+      onConfirm: async () => {
+        setConfirmAction(null);
+        setIsDeleting(true);
+        setDeletionMessage("Initializing data cabinet purge...");
+        
+        try {
+          const uid = profile.studentId || (auth.currentUser ? auth.currentUser.uid : null);
+          
+          if (uid) {
+            setDeletionMessage("Purging study materials & quiz decks from Cloud servers...");
+            const q = query(collection(db, 'study_sets'), where('owner_id', '==', uid));
+            const snap = await getDocs(q);
+            const deletePromises = snap.docs.map(docSnap => deleteDoc(docSnap.ref));
+            await Promise.all(deletePromises);
+            
+            setDeletionMessage("Erasing user credential profile ledger...");
+            await deleteDoc(doc(db, 'users', uid));
+          }
+          
+          setDeletionMessage("Clearing local offline cached documents...");
+          await clearOPFS();
+          
+          setDeletionMessage("Deleting browser cache storage keys...");
+          localStorage.clear();
+          
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            setDeletionMessage("Terminating account authentication record...");
+            try {
+              await deleteUser(currentUser);
+            } catch (authErr: any) {
+              console.warn("Direct Auth record deletion failed (usually requires recent login):", authErr);
+              await auth.signOut();
+              alert("Your Firestore database folders, materials, student profile, and local document cache have been completely wiped. Due to security protocols, you must log in again to delete your email registration itself.");
+            }
+          }
+          
+          setIsDeleting(false);
+          setDeletionMessage(null);
+          
+          // Force hard reload of application to default entry states
+          window.location.reload();
+        } catch (err: any) {
+          console.error("Critical destruction pipeline failed:", err);
+          setIsDeleting(false);
+          setDeletionMessage(null);
+          alert(`Erasing files failed partially: ${err.message}`);
+        }
+      }
+    });
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,26 +308,24 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
                     </button>
 
                     <button
-                      onClick={() => {
-                        handleTick();
-                        setConfirmAction({
-                          message: "Are you sure you want to clear this account and start completely fresh? All current folders, quizzes, and score history will be deleted.",
-                          onConfirm: () => {
-                            localStorage.clear();
-                            setConfirmAction(null);
-                            if (onLogout) {
-                              onLogout();
-                            } else {
-                              setProfile(prev => ({ ...prev, signedIn: false }));
-                            }
-                          }
-                        });
-                      }}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-450 hover:text-rose-400 rounded-xl text-xs font-mono font-semibold cursor-pointer"
+                      type="button"
+                      onClick={handleSignOutClick}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 hover:text-white cursor-pointer transition-colors"
                     >
-                      <span>Wipe Station &amp; Sign Out</span>
+                      <LogOut className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Sign Out</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDeleteAccountClick}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-450 hover:text-rose-400 rounded-xl text-xs font-mono font-semibold cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Delete Account</span>
                     </button>
                   </div>
+
                 </motion.div>
               ) : (
                 <motion.form
@@ -413,6 +492,22 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
           </div>
         )}
       </AnimatePresence>
+
+      {/* Account Deletion Purple/Rose Purging Overlay */}
+      <AnimatePresence>
+        {isDeleting && (
+          <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 z-[9999]">
+            <div className="max-w-xs text-center space-y-4">
+              <div className="w-12 h-12 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin mx-auto" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-display font-black uppercase tracking-widest text-white">Wiping Data Ledger</h4>
+                <p className="text-[11px] font-mono text-rose-420 uppercase animate-pulse tracking-tight">{deletionMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
