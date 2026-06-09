@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { createServer } from "http";
-import { setupWebSocketServer } from "./src/server/websocket.ts";
+import { setupWebSocketServer, rooms, prepareCards, compileRoomState, startQuestionTimer, revealAnswerAndProgress, broadcastRoomState } from "./src/server/websocket.ts";
 
 dotenv.config();
 
@@ -45,6 +45,240 @@ async function startServer() {
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
+  // ==========================================
+  // HTTP REST API MULTIPLAYER FALLBACK ENDPOINTS
+  // ==========================================
+  app.post("/api/arena/create", (req, res) => {
+    try {
+      const { ownerId, nickname, deckTitle, cards } = req.body;
+      const roomCode = Math.floor(100000 + Math.random() * 900000).toString(); // Perfect 6-digit PIN
+      const preparedCards = prepareCards(cards);
+
+      rooms[roomCode] = {
+        roomCode,
+        hostSocket: null, // Host via polling
+        hostUid: ownerId || "HOST_UID",
+        deckTitle: deckTitle || "Study Deck Showdown",
+        totalQuestions: preparedCards.length,
+        cards: preparedCards,
+        players: {},
+        status: "lobby",
+        currentQuestionIndex: -1,
+        timeLeft: 0,
+        timerInterval: null
+      };
+
+      console.log(`[HTTP Sync] Created Room ${roomCode}`);
+      res.json({
+        success: true,
+        roomCode,
+        deckTitle: rooms[roomCode].deckTitle,
+        totalQuestions: preparedCards.length
+      });
+    } catch (e: any) {
+      console.error("HTTP Room Create Error:", e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/join", (req, res) => {
+    try {
+      const { roomCode, nickname } = req.body;
+      const targetRoomCode = roomCode?.trim();
+      const room = rooms[targetRoomCode];
+
+      if (!room) {
+        return res.status(404).json({ success: false, error: `Active room ${targetRoomCode} not found.` });
+      }
+
+      if (room.status !== "lobby") {
+        return res.status(400).json({ success: false, error: "This game has already started!" });
+      }
+
+      const playerId = Math.random().toString(36).substring(2, 9);
+      const exists = Object.values(room.players).some(p => p.nickname.toLowerCase() === nickname.trim().toLowerCase());
+      const finalNickname = exists ? `${nickname.trim()} #${Math.floor(Math.random() * 100)}` : nickname.trim();
+
+      room.players[playerId] = {
+        socket: null, // Connected via HTTP Polling
+        playerId,
+        nickname: finalNickname,
+        score: 0,
+        streak: 0,
+        answeredCorrectly: false,
+        answeredThisRound: false,
+        answeredAt: 0,
+        selectedOptionIndex: null,
+        scoreAddedThisRound: 0
+      };
+
+      console.log(`[HTTP Sync] Player ${finalNickname} joined Room ${targetRoomCode}`);
+      broadcastRoomState(targetRoomCode); // Notify existing WS and hosts
+
+      res.json({
+        success: true,
+        roomCode: targetRoomCode,
+        nickname: finalNickname,
+        playerId
+      });
+    } catch (e: any) {
+      console.error("HTTP Join Error:", e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/status", (req, res) => {
+    try {
+      const { roomCode } = req.body;
+      const room = rooms[roomCode];
+
+      if (!room) {
+        return res.json({ success: false, error: "Room dissolved" });
+      }
+
+      const state = compileRoomState(roomCode);
+      res.json({ success: true, room: state });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/start", (req, res) => {
+    try {
+      const { roomCode } = req.body;
+      const room = rooms[roomCode];
+      if (!room) return res.status(404).json({ success: false, error: "Room not found." });
+
+      room.status = "question";
+      room.currentQuestionIndex = 0;
+      startQuestionTimer(roomCode);
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/submit", (req, res) => {
+    try {
+      const { roomCode, playerId, optionIndex } = req.body;
+      const room = rooms[roomCode];
+      if (!room) return res.status(404).json({ success: false, error: "Room not found." });
+      if (room.status !== "question") return res.status(400).json({ success: false, error: "Not accepting answers." });
+
+      const player = room.players[playerId];
+      if (!player) return res.status(404).json({ success: false, error: "Player not found." });
+      if (player.answeredThisRound) return res.json({ success: true, alreadySubmitted: true });
+
+      const currentCard = room.cards[room.currentQuestionIndex];
+      const selectedOptionText = currentCard.options[optionIndex];
+      const isCorrect = selectedOptionText === currentCard.answer;
+
+      player.answeredThisRound = true;
+      player.answeredAt = Date.now();
+      player.selectedOptionIndex = optionIndex;
+      player.answeredCorrectly = isCorrect;
+
+      if (isCorrect) {
+        player.streak += 1;
+        const ratio = room.timeLeft / 20;
+        const streakBonus = Math.min(player.streak * 50, 250);
+        player.scoreAddedThisRound = Math.round(500 + 500 * ratio) + streakBonus;
+        player.score += player.scoreAddedThisRound;
+      } else {
+        player.streak = 0;
+        player.scoreAddedThisRound = 0;
+      }
+
+      const activePlayers = Object.values(room.players);
+      const allAnswered = activePlayers.every(p => p.answeredThisRound);
+
+      if (allAnswered) {
+        revealAnswerAndProgress(roomCode);
+      } else {
+        broadcastRoomState(roomCode);
+      }
+
+      res.json({
+        success: true,
+        feedback: {
+          isCorrect,
+          scoreAdded: player.scoreAddedThisRound,
+          streak: player.streak
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/next", (req, res) => {
+    try {
+      const { roomCode } = req.body;
+      const room = rooms[roomCode];
+      if (!room) return res.status(404).json({ success: false, error: "Room not found." });
+
+      if (room.status === "reveal") {
+        Object.values(room.players).forEach(p => {
+          p.answeredThisRound = false;
+          p.selectedOptionIndex = null;
+          p.answeredCorrectly = false;
+          p.scoreAddedThisRound = 0;
+        });
+
+        if (room.currentQuestionIndex + 1 < room.totalQuestions) {
+          room.status = "question";
+          room.currentQuestionIndex += 1;
+          startQuestionTimer(roomCode);
+        } else {
+          room.status = "podium";
+          if (room.timerInterval) clearInterval(room.timerInterval);
+          broadcastRoomState(roomCode);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/arena/leave", (req, res) => {
+    try {
+      const { roomCode, playerId, isHost } = req.body;
+      const room = rooms[roomCode];
+      if (!room) return res.json({ success: true });
+
+      if (isHost) {
+        if (room.timerInterval) clearInterval(room.timerInterval);
+        
+        Object.values(room.players).forEach(p => {
+          try {
+            if (p.socket) {
+              p.socket.send(JSON.stringify({
+                type: "room_destroyed",
+                data: { message: "The host has closed the room." }
+              }));
+            }
+          } catch (e) {}
+        });
+
+        delete rooms[roomCode];
+        console.log(`[HTTP Sync] Room ${roomCode} dissolved (host HTTP leave)`);
+      } else {
+        if (room.players[playerId]) {
+          delete room.players[playerId];
+          console.log(`[HTTP Sync] Player ${playerId} left Room ${roomCode}`);
+          broadcastRoomState(roomCode);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
   });
 
   // AI Quiz Flashcard Generation Route

@@ -123,6 +123,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   // Connection states
   const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [activeChannel, setActiveChannel] = useState<"ws" | "http">("ws");
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [role, setRole] = useState<"host" | "player" | null>(null);
   const [myNickname, setMyNickname] = useState(profile.name.split(" ")[0] || "Scholar");
@@ -165,6 +166,123 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   const handleTick = () => sound.playTick();
   const handleChime = () => sound.playChime();
 
+  const initiateHttpFallback = (actionOnFallback?: () => void) => {
+    setActiveChannel("http");
+    setConnectionStatus("connected");
+    setErrorText(null);
+    console.warn("🌐 [Multiplayer Protocol] Activating HTTP fallback tunnel...");
+    if (actionOnFallback) {
+      actionOnFallback();
+    }
+  };
+
+  const createRoomViaHttp = async (deckName: string, cardsList: any[]) => {
+    try {
+      const res = await fetch("/api/arena/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId: profile.studentId || "HOST_UID",
+          nickname: myNickname,
+          deckTitle: deckName,
+          cards: cardsList
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRoomCode(data.roomCode);
+        setDeckTitle(data.deckTitle);
+        setTotalQuestions(data.totalQuestions);
+        setGameStatus("lobby");
+        handleChime();
+      } else {
+        setErrorText(data.error || "Failed to sync battle room over HTTP.");
+      }
+    } catch (err: any) {
+      setErrorText(`Handshake over HTTP rejected: ${err.message}`);
+    }
+  };
+
+  const joinRoomViaHttp = async (targetRoomCode: string) => {
+    try {
+      const res = await fetch("/api/arena/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: targetRoomCode,
+          nickname: myNickname
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRoomCode(data.roomCode);
+        setMyPlayerId(data.playerId);
+        setMyNickname(data.nickname);
+        setGameStatus("lobby");
+        handleChime();
+      } else {
+        setErrorText(data.error || "Room index not active or nickname rejected.");
+      }
+    } catch (err: any) {
+      setErrorText(`Failed to bind player thread: ${err.message}`);
+    }
+  };
+
+  // High-frequency polling effect for HTTP mode fallback
+  useEffect(() => {
+    if (activeChannel === "http" && role !== null && roomCode) {
+      let active = true;
+      const poll = async () => {
+        try {
+          const res = await fetch("/api/arena/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomCode, playerId: myPlayerId })
+          });
+          const data = await res.json();
+          if (!active) return;
+          if (data.success && data.room) {
+            setGameStatus(data.room.status);
+            setCurrentQuestionIdx(data.room.currentQuestionIndex);
+            setTotalQuestions(data.room.totalQuestions);
+            setTimeLeft(data.room.timeLeft);
+            setScoreboard(data.room.scoreboard);
+            setCurrentQuestion(data.room.currentQuestion);
+            setDeckTitle(data.room.deckTitle);
+            
+            // Sync player-level feedback if round parameters are updated on server
+            if (role === "player" && myPlayerId) {
+              const pData = data.room.scoreboard.find((p: any) => p.playerId === myPlayerId);
+              if (pData) {
+                if (pData.answered && answeredIndex === null) {
+                  setAnsweredIndex(pData.selected);
+                  setRoundFeedback({
+                    submitted: true,
+                    isCorrect: pData.isCorrect,
+                    scoreAdded: pData.addedPoints,
+                    streak: pData.streak
+                  });
+                }
+              }
+            }
+          } else if (data.success === false && data.error === "Room dissolved") {
+            alert("This battle room has been dissolved by the host.");
+            resetToDash();
+          }
+        } catch (e) {
+          console.error("HTTP status poll error:", e);
+        }
+      };
+
+      poll();
+      const interval = setInterval(poll, 1200);
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }
+  }, [activeChannel, role, roomCode, myPlayerId, answeredIndex]);
+
   // Create or Join WebSockets connection channel
   const connectToServer = (onSuccess: (socket: WebSocket) => void) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -179,7 +297,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       const isSecure = window.location.protocol === "https:";
       const wsProtocol = isSecure ? "wss:" : "ws:";
       
-      // Compute URL path - fallback is localhost but standard is self-domain to bind port 3000
       const wsUrl = `${wsProtocol}//${window.location.host}/multiplayer`;
       console.log(`[WS Connection] Directing bridge to: ${wsUrl}`);
       
@@ -187,6 +304,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       ws.current = socket;
 
       socket.onopen = () => {
+        setActiveChannel("ws");
         setConnectionStatus("connected");
         console.log("[WS Connection] WebSocket handshake completed successfully.");
         onSuccess(socket);
@@ -228,11 +346,8 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
               setScoreboard(data.scoreboard);
               setCurrentQuestion(data.currentQuestion);
 
-              // Play sounds on phase changes
               if (data.status === "question" && timeLeft === 20) {
-                // Sound chime on new questions
                 sound.playChime();
-                // Clear player round states
                 setAnsweredIndex(null);
                 setRoundFeedback(null);
               }
@@ -278,8 +393,8 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
       socket.onerror = (err) => {
         console.error("[WS] Pipeline mismatch error:", err);
-        setConnectionStatus("disconnected");
-        setErrorText("Server connection failed. Please ensure your backend is compiled and running.");
+        // Switch to HTTP fallback immediately if socket fails during run
+        initiateHttpFallback();
       };
 
     } catch (err: any) {
@@ -288,11 +403,28 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     }
   };
 
-  const resetToDash = () => {
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+  const resetToDash = async () => {
+    if (roomCode && role !== null) {
+      if (activeChannel === "ws") {
+        if (ws.current) {
+          ws.current.close();
+          ws.current = null;
+        }
+      } else {
+        try {
+          await fetch("/api/arena/leave", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              roomCode,
+              playerId: myPlayerId,
+              isHost: role === "host"
+            })
+          });
+        } catch (e) {}
+      }
     }
+
     setRoomCode(null);
     setRole(null);
     setGameStatus("lobby");
@@ -300,6 +432,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     setRoundFeedback(null);
     setConnectionStatus("disconnected");
     setErrorText(null);
+    setActiveChannel("ws"); // Reset channel back to WS for next session
     handlePop();
   };
 
@@ -462,7 +595,24 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   const handleHostRoom = (deckName: string, cardsList: any[]) => {
     handleTick();
     setRole("host");
+    
+    let wsTimedOut = false;
+    const wsTimeout = setTimeout(() => {
+      wsTimedOut = true;
+      if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+        console.warn("[WS Host] Handshake protocol timed out. Re-routing through HTTP tunnel...");
+        if (ws.current) {
+          ws.current.close();
+          ws.current = null;
+        }
+        initiateHttpFallback(() => createRoomViaHttp(deckName, cardsList));
+      }
+    }, 2200);
+
     connectToServer((socket) => {
+      clearTimeout(wsTimeout);
+      if (wsTimedOut) return;
+      
       socket.send(JSON.stringify({
         type: "create_room",
         data: {
@@ -477,39 +627,113 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputRoomCode.trim()) return;
+    const targetCode = inputRoomCode.trim();
+    if (!targetCode) return;
     handleTick();
     setRole("player");
+
+    let wsTimedOut = false;
+    const wsTimeout = setTimeout(() => {
+      wsTimedOut = true;
+      if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+        console.warn("[WS Join] Handshake protocol timed out. Requesting entry via HTTP channel...");
+        if (ws.current) {
+          ws.current.close();
+          ws.current = null;
+        }
+        initiateHttpFallback(() => joinRoomViaHttp(targetCode));
+      }
+    }, 2200);
+
     connectToServer((socket) => {
+      clearTimeout(wsTimeout);
+      if (wsTimedOut) return;
+
       socket.send(JSON.stringify({
         type: "join_room",
         data: {
-          roomCode: inputRoomCode.trim(),
+          roomCode: targetCode,
           nickname: myNickname
         }
       }));
     });
   };
 
-  const handleStartGame = () => {
-    if (!ws.current || role !== "host") return;
+  const handleStartGame = async () => {
     handleChime();
-    ws.current.send(JSON.stringify({ type: "start_game" }));
+    if (activeChannel === "ws") {
+      if (!ws.current || role !== "host") return;
+      ws.current.send(JSON.stringify({ type: "start_game" }));
+    } else {
+      if (!roomCode || role !== "host") return;
+      try {
+        await fetch("/api/arena/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomCode })
+        });
+      } catch (err) {
+        console.error("Failed to post start command over HTTP:", err);
+      }
+    }
   };
 
-  const handleSubmitAnswer = (index: number) => {
-    if (!ws.current || role !== "player" || answeredIndex !== null) return;
+  const handleSubmitAnswer = async (index: number) => {
+    if (role !== "player" || answeredIndex !== null) return;
     setAnsweredIndex(index);
-    ws.current.send(JSON.stringify({
-      type: "submit_answer",
-      data: { optionIndex: index }
-    }));
+    handleTick();
+
+    if (activeChannel === "ws") {
+      if (!ws.current) return;
+      ws.current.send(JSON.stringify({
+        type: "submit_answer",
+        data: { optionIndex: index }
+      }));
+    } else {
+      if (!roomCode || !myPlayerId) return;
+      try {
+        const res = await fetch("/api/arena/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomCode, playerId: myPlayerId, optionIndex: index })
+        });
+        const data = await res.json();
+        if (data.success && data.feedback) {
+          setRoundFeedback({
+            submitted: true,
+            isCorrect: data.feedback.isCorrect,
+            scoreAdded: data.feedback.scoreAdded,
+            streak: data.feedback.streak
+          });
+          if (data.feedback.isCorrect) {
+            sound.playCorrect();
+          } else {
+            sound.playIncorrect();
+          }
+        }
+      } catch (e) {
+        console.error("HTTP answer submission trigger error:", e);
+      }
+    }
   };
 
-  const handleNextStep = () => {
-    if (!ws.current || role !== "host") return;
+  const handleNextStep = async () => {
     handleTick();
-    ws.current.send(JSON.stringify({ type: "next_question" }));
+    if (activeChannel === "ws") {
+      if (!ws.current || role !== "host") return;
+      ws.current.send(JSON.stringify({ type: "next_question" }));
+    } else {
+      if (!roomCode || role !== "host") return;
+      try {
+        await fetch("/api/arena/next", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomCode })
+        });
+      } catch (err) {
+        console.error("Failed to register next step command over HTTP:", err);
+      }
+    }
   };
 
   // Predefined stylized Kahoot button properties

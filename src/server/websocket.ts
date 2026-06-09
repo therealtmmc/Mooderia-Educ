@@ -1,8 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
 
-interface Player {
-  socket: WebSocket;
+// Exported interfaces for state synchronization
+export interface Player {
+  socket?: WebSocket | null;
   playerId: string;
   nickname: string;
   score: number;
@@ -14,9 +15,9 @@ interface Player {
   scoreAddedThisRound: number;
 }
 
-interface Room {
+export interface Room {
   roomCode: string;
-  hostSocket: WebSocket;
+  hostSocket?: WebSocket | null;
   hostUid: string;
   deckTitle: string;
   totalQuestions: number;
@@ -33,7 +34,75 @@ interface Room {
   timerInterval: NodeJS.Timeout | null;
 }
 
-const rooms: { [code: string]: Room } = {};
+// In-Memory Multi-user Session Storage
+export const rooms: { [code: string]: Room } = {};
+
+// Distractor and card mapper shared between WS and HTTP
+export function prepareCards(cards: any[]): any[] {
+  return cards.map((card: any) => {
+    let options = card.options || [];
+    if (options.length < 2) {
+      // Get other answers from other cards to make distractors
+      const otherAnswers = cards
+        .map((c: any) => c.answer)
+        .filter((ans: string) => ans !== card.answer && ans && ans.trim().length > 0);
+
+      const distractors = otherAnswers
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+
+      const rawOptions = [card.answer, ...distractors];
+      // Remove duplicates and shuffle
+      options = Array.from(new Set(rawOptions)).sort(() => Math.random() - 0.5);
+    }
+
+    return {
+      question: card.question,
+      options,
+      answer: card.answer,
+      explanation: card.explanation || card.clue || ""
+    };
+  });
+}
+
+export function compileRoomState(roomCode: string) {
+  const room = rooms[roomCode];
+  if (!room) return null;
+
+  const currentCard = room.currentQuestionIndex >= 0 && room.currentQuestionIndex < room.totalQuestions 
+    ? room.cards[room.currentQuestionIndex] 
+    : null;
+
+  // Compile leaderboard list of top active players sorted by overall score
+  const scoreboard = Object.values(room.players)
+    .map(p => ({
+      playerId: p.playerId,
+      nickname: p.nickname,
+      score: p.score,
+      answered: p.answeredThisRound,
+      isCorrect: p.answeredCorrectly,
+      selected: p.selectedOptionIndex,
+      addedPoints: p.scoreAddedThisRound,
+      streak: p.streak
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return {
+    roomCode: room.roomCode,
+    deckTitle: room.deckTitle,
+    status: room.status,
+    currentQuestionIndex: room.currentQuestionIndex,
+    totalQuestions: room.totalQuestions,
+    timeLeft: room.timeLeft,
+    scoreboard,
+    currentQuestion: currentCard ? {
+      question: currentCard.question,
+      options: currentCard.options,
+      answer: room.status === "reveal" || room.status === "podium" ? currentCard.answer : undefined,
+      explanation: currentCard.explanation
+    } : null
+  };
+}
 
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ noServer: true });
@@ -65,33 +134,10 @@ export function setupWebSocketServer(server: Server) {
         switch (type) {
           case "create_room": {
             const { ownerId, nickname, deckTitle, cards } = data;
-            const roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit numeric code
+            // Generates a proper 6-digit game PIN
+            const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-            // Map and synthesize MC options if cards only have QA format
-            const preparedCards = cards.map((card: any, idx: number) => {
-              let options = card.options || [];
-              if (options.length < 2) {
-                // Get other answers from other cards to make distractors
-                const otherAnswers = cards
-                  .map((c: any) => c.answer)
-                  .filter((ans: string) => ans !== card.answer && ans && ans.trim().length > 0);
-
-                const distractors = otherAnswers
-                  .sort(() => Math.random() - 0.5)
-                  .slice(0, 3);
-
-                const rawOptions = [card.answer, ...distractors];
-                // Remove duplicates and shuffle
-                options = Array.from(new Set(rawOptions)).sort(() => Math.random() - 0.5);
-              }
-
-              return {
-                question: card.question,
-                options,
-                answer: card.answer,
-                explanation: card.explanation || card.clue || ""
-              };
-            });
+            const preparedCards = prepareCards(cards);
 
             const newRoom: Room = {
               roomCode,
@@ -137,7 +183,7 @@ export function setupWebSocketServer(server: Server) {
 
             // Check duplicate nickname
             const exists = Object.values(room.players).some(p => p.nickname.toLowerCase() === nickname.trim().toLowerCase());
-            const finalNickname = exists ? `${nickname.trim()} #${Math.floor(Math.random() * 90)}` : nickname.trim();
+            const finalNickname = exists ? `${nickname.trim()} #${Math.floor(Math.random() * 100)}` : nickname.trim();
 
             const newPlayer: Player = {
               socket: ws,
@@ -272,10 +318,12 @@ export function setupWebSocketServer(server: Server) {
         
         Object.values(room.players).forEach(p => {
           try {
-            p.socket.send(JSON.stringify({
-              type: "room_destroyed",
-              data: { message: "The host has closed the room or lost connection." }
-            }));
+            if (p.socket) {
+              p.socket.send(JSON.stringify({
+                type: "room_destroyed",
+                data: { message: "The host has closed the room or lost connection." }
+              }));
+            }
           } catch(e) {}
         });
 
@@ -297,7 +345,7 @@ export function setupWebSocketServer(server: Server) {
   });
 }
 
-function startQuestionTimer(roomCode: string) {
+export function startQuestionTimer(roomCode: string) {
   const room = rooms[roomCode];
   if (!room) return;
 
@@ -317,7 +365,7 @@ function startQuestionTimer(roomCode: string) {
   }, 1000);
 }
 
-function revealAnswerAndProgress(roomCode: string) {
+export function revealAnswerAndProgress(roomCode: string) {
   const room = rooms[roomCode];
   if (!room) return;
 
@@ -338,58 +386,33 @@ function revealAnswerAndProgress(roomCode: string) {
   broadcastRoomState(roomCode);
 }
 
-function broadcastRoomState(roomCode: string) {
+export function broadcastRoomState(roomCode: string) {
   const room = rooms[roomCode];
   if (!room) return;
 
-  const currentCard = room.currentQuestionIndex >= 0 && room.currentQuestionIndex < room.totalQuestions 
-    ? room.cards[room.currentQuestionIndex] 
-    : null;
-
-  // Compile leaderboard list of top active players sorted by overall score
-  const scoreboard = Object.values(room.players)
-    .map(p => ({
-      playerId: p.playerId,
-      nickname: p.nickname,
-      score: p.score,
-      answered: p.answeredThisRound,
-      isCorrect: p.answeredCorrectly,
-      selected: p.selectedOptionIndex,
-      addedPoints: p.scoreAddedThisRound,
-      streak: p.streak
-    }))
-    .sort((a, b) => b.score - a.score);
+  const statePayload = compileRoomState(roomCode);
+  if (!statePayload) return;
 
   const payload = {
     type: "room_update",
-    data: {
-      roomCode: room.roomCode,
-      deckTitle: room.deckTitle,
-      status: room.status,
-      currentQuestionIndex: room.currentQuestionIndex,
-      totalQuestions: room.totalQuestions,
-      timeLeft: room.timeLeft,
-      scoreboard,
-      currentQuestion: currentCard ? {
-        question: currentCard.question,
-        options: currentCard.options,
-        answer: currentCard.answer, // Exposed in reveal phase
-        explanation: currentCard.explanation
-      } : null
-    }
+    data: statePayload
   };
 
   const messageStr = JSON.stringify(payload);
 
-  // Send to host first
+  // Send to host first if socket is active
   try {
-    room.hostSocket.send(messageStr);
+    if (room.hostSocket && room.hostSocket.readyState === WebSocket.OPEN) {
+      room.hostSocket.send(messageStr);
+    }
   } catch(e) {}
 
   // Send to all players
   Object.values(room.players).forEach(p => {
     try {
-      p.socket.send(messageStr);
+      if (p.socket && p.socket.readyState === WebSocket.OPEN) {
+        p.socket.send(messageStr);
+      }
     } catch (e) {}
   });
 }
