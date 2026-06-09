@@ -20,7 +20,12 @@ const GRADIENT_PRESETS = [
   { id: "emerald", label: "Deep Emerald", start: "from-teal-600", end: "to-emerald-600", css: "bg-gradient-to-br from-teal-600 to-emerald-600" },
   { id: "sunset", label: "Cosmic Sunset", start: "from-rose-600", end: "to-orange-500", css: "bg-gradient-to-br from-rose-600 to-orange-500" },
   { id: "sky", label: "Cyber Sky", start: "from-cyan-500", end: "to-blue-600", css: "bg-gradient-to-br from-cyan-500 to-blue-600" },
-  { id: "solar", label: "Solar Flare", start: "from-yellow-500", end: "to-amber-500", css: "bg-gradient-to-br from-yellow-500 to-amber-500" }
+  { id: "solar", label: "Solar Flare", start: "from-yellow-500", end: "to-amber-500", css: "bg-gradient-to-br from-yellow-500 to-amber-500" },
+  { id: "neon", label: "Neon Coral", start: "from-pink-500", end: "to-rose-500", css: "bg-gradient-to-br from-pink-500 to-rose-500" },
+  { id: "ocean", label: "Pacific Teal", start: "from-sky-600", end: "to-cyan-600", css: "bg-gradient-to-br from-sky-600 to-cyan-600" },
+  { id: "crimson", label: "Royal Velvet", start: "from-red-600", end: "to-purple-900", css: "bg-gradient-to-br from-red-600 to-purple-900" },
+  { id: "sage", label: "Forest Moss", start: "from-green-600", end: "to-emerald-800", css: "bg-gradient-to-br from-green-600 to-emerald-800" },
+  { id: "obsidian", label: "Stealth Onyx", start: "from-slate-700", end: "to-slate-900", css: "bg-gradient-to-br from-slate-700 to-slate-900" }
 ];
 
 export default function ProfileView({ profile, setProfile, folders, quizzes, totalAttempts, onLogout }: ProfileViewProps) {

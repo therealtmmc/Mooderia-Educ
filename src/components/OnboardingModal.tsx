@@ -24,6 +24,7 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [university, setUniversity] = useState("");
+  const [program, setProgram] = useState("");
   const [year, setYear] = useState("1st Year");
   const [theme, setTheme] = useState("Classic Mooderia Purple");
   const [avatarEmoji, setAvatarEmoji] = useState("🤖");
@@ -38,7 +39,13 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
     "Classic Mooderia Purple",
     "Midnight Violet",
     "Mint Green",
-    "Electric Yellow"
+    "Electric Yellow",
+    "Ocean Blue",
+    "Rosewood Crimson",
+    "Amber Gold",
+    "Forest Sage",
+    "Neon Coral",
+    "Stealth Obsidian"
   ];
 
   const handleAvatarSelect = (emoji: string) => {
@@ -83,7 +90,7 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !university.trim()) {
+    if (!firstName.trim() || !lastName.trim() || !university.trim() || !program.trim()) {
       setErrorText("Please fill out your metadata completely.");
       sound.playPop();
       return;
@@ -99,6 +106,7 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         university: university.trim(),
+        program: program.trim(),
         year,
         theme,
         avatar_emoji: avatarEmoji
@@ -126,7 +134,7 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
         avatarGradientStart: "from-indigo-600",
         avatarGradientEnd: "to-fuchsia-600",
         university: university.trim(),
-        program: `${year} Track`,
+        program: program.trim(),
         year: year,
         theme: theme,
         signedIn: true
@@ -207,6 +215,24 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
                   value={university}
                   onChange={(e) => setUniversity(e.target.value)}
                   placeholder="e.g. University of Oxford"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Academic Program / Major of Study */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Academic Program / Major of Study (Required)</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <BookOpen className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={program}
+                  onChange={(e) => setProgram(e.target.value)}
+                  placeholder="e.g. Computer Science / Biochemistry"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
                 />
               </div>

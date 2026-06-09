@@ -78,6 +78,7 @@ export async function initializeStudentProfileInDb(
     firstName: string;
     lastName: string;
     university: string;
+    program: string;
     year: string;
     theme: string;
     avatar_emoji: string;
@@ -94,6 +95,7 @@ export async function initializeStudentProfileInDb(
       last_name: profileData.lastName.trim(),
       email: user.email || "",
       university: profileData.university.trim(),
+      program: profileData.program.trim(),
       year: profileData.year,
       theme: profileData.theme,
       avatar_emoji: profileData.avatar_emoji,

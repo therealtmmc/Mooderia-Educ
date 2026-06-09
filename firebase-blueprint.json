@@ -10,6 +10,7 @@
         "last_name": { "type": "string", "description": "Last name of the student." },
         "email": { "type": "string", "format": "email", "description": "Email address of the student." },
         "university": { "type": "string", "description": "University name or college." },
+        "program": { "type": "string", "description": "Degree program or major of the student." },
         "year": { "type": "string", "description": "Year of university." },
         "theme": { "type": "string", "description": "Base App Theme." },
         "avatar_emoji": { "type": "string", "description": "Selected avatar emoji." },
@@ -19,7 +20,7 @@
         "last_active": { "type": "string", "description": "Last active date string in YYYY-MM-DD or similar format." },
         "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp." }
       },
-      "required": ["uid", "first_name", "last_name", "email", "university", "year", "theme", "avatar_emoji", "total_xp", "current_streak", "level_title", "last_active", "created_at"]
+      "required": ["uid", "first_name", "last_name", "email", "university", "program", "year", "theme", "avatar_emoji", "total_xp", "current_streak", "level_title", "last_active", "created_at"]
     },
     "StudySet": {
       "title": "StudySet",

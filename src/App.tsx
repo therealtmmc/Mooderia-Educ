@@ -87,7 +87,7 @@ export default function App() {
                   avatarGradientStart: "from-indigo-600",
                   avatarGradientEnd: "to-fuchsia-600",
                   university: data.university || "Academic Institution",
-                  program: `${data.year || "1st Year"} Track`,
+                  program: data.program || "Academic Program",
                   year: data.year || "1st Year",
                   signedIn: true
                 });
@@ -380,7 +380,7 @@ export default function App() {
                   avatarGradientStart: "from-indigo-600",
                   avatarGradientEnd: "to-fuchsia-600",
                   university: data.university || "Academic Institution",
-                  program: `${data.year || "1st Year"} Track`,
+                  program: data.program || "Academic Program",
                   year: data.year || "1st Year",
                   signedIn: true
                 });

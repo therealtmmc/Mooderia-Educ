@@ -39,13 +39,14 @@ service cloud.firestore {
     // -------------------------------------------------------------
     
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'first_name', 'last_name', 'email', 'university', 'year', 'theme', 'avatar_emoji', 'total_xp', 'current_streak', 'level_title', 'last_active', 'created_at'])
-        && data.keys().size() == 13
+      return data.keys().hasAll(['uid', 'first_name', 'last_name', 'email', 'university', 'program', 'year', 'theme', 'avatar_emoji', 'total_xp', 'current_streak', 'level_title', 'last_active', 'created_at'])
+        && data.keys().size() == 14
         && data.uid is string && data.uid.size() <= 128
         && data.first_name is string && data.first_name.size() <= 128
         && data.last_name is string && data.last_name.size() <= 128
         && data.email is string && data.email.size() <= 128
         && data.university is string && data.university.size() <= 200
+        && data.program is string && data.program.size() <= 128
         && data.year is string && data.year.size() <= 32
         && data.theme is string && data.theme.size() <= 64
         && data.avatar_emoji is string && data.avatar_emoji.size() <= 64
@@ -87,7 +88,7 @@ service cloud.firestore {
         incoming().email == existing().email &&
         incoming().created_at == existing().created_at && (
           // Action: Daily Streak or earning XP via complete Quiz drills or changing themes/avatar/university
-          incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'first_name', 'last_name', 'university', 'year', 'theme', 'avatar_emoji', 'last_active'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'first_name', 'last_name', 'university', 'program', 'year', 'theme', 'avatar_emoji', 'last_active'])
         )
       );
 
