@@ -4,13 +4,12 @@
  * and packaged PWA shell contexts (where window.location.host may resolve incorrectly).
  */
 
-const processEnv = (import.meta as any).env || {};
-
-export const GEMINI_API_KEY = processEnv.GEMINI_API_KEY || "";
-export const APP_URL = processEnv.APP_URL || "";
+// Explicitly reference Vite's object format so its string replacer works at build-time.
+export const GEMINI_API_KEY = typeof process !== "undefined" && process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY : import.meta.env.VITE_GEMINI_API_KEY || "";
+export const APP_URL = import.meta.env.VITE_APP_URL || "";
 
 // Custom Game Engine Config
-export const VITE_BACKEND_URL = processEnv.VITE_BACKEND_URL || "";
+export const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 
 /**
  * Resolves the absolute backend base URL for HTTP/REST communication.
