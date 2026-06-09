@@ -90,6 +90,30 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   const getBackendUrl = (path: string) => {
     return getBackendHttpUrl(path);
   };
+
+  const safeFetchJson = async (url: string, options: RequestInit): Promise<any> => {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    const trimmed = rawText.trim();
+
+    if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+      console.warn(`[HTTP Fetch Warn] Expected JSON from ${url}, but received HTML instead:`, trimmed.slice(0, 100));
+      throw new Error(`Server returned HTML webpage instead of JSON (possibly a 404/500 page or router redirect). URL: ${url}`);
+    }
+
+    if (!contentType.includes("application/json") && !trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      console.warn(`[HTTP Fetch Warn] Non-JSON payload received from ${url}:`, trimmed.slice(0, 100));
+      throw new Error(`Server returned invalid response: "${trimmed.slice(0, 80)}"`);
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch (err: any) {
+      console.error(`[HTTP Fetch Parse Fail] Raw response:`, trimmed);
+      throw new Error(`Failed to parse response as JSON. Content: "${trimmed.slice(0, 80)}"`);
+    }
+  };
   
   // Custom interactive arenas persistent state
   const [customArenas, setCustomArenas] = useState<{
@@ -184,7 +208,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const createRoomViaHttp = async (deckName: string, cardsList: any[], retries = 30) => {
     try {
-      const res = await fetch(getBackendUrl("/api/arena/create"), {
+      const data = await safeFetchJson(getBackendUrl("/api/arena/create"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,17 +219,6 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         })
       });
       
-      const rawText = await res.text();
-      if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-        console.warn("[Network Warning] Container waking up. HTML received:", rawText.slice(0, 50));
-        if (retries > 0) {
-          setTimeout(() => createRoomViaHttp(deckName, cardsList, retries - 1), 2000);
-          return;
-        }
-        throw new Error("Server took too long to spin up (HTML 404/502).");
-      }
-      
-      const data = JSON.parse(rawText);
       if (data.success) {
         setRoomCode(data.roomCode);
         setDeckTitle(data.deckTitle);
@@ -226,7 +239,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const joinRoomViaHttp = async (targetRoomCode: string, retries = 30) => {
     try {
-      const res = await fetch(getBackendUrl("/api/arena/join"), {
+      const data = await safeFetchJson(getBackendUrl("/api/arena/join"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,18 +247,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
           nickname: myNickname
         })
       });
-      
-      const rawText = await res.text();
-      if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-        console.warn("[Network Warning] Container waking up. HTML received:", rawText.slice(0, 50));
-        if (retries > 0) {
-          setTimeout(() => joinRoomViaHttp(targetRoomCode, retries - 1), 2000);
-          return;
-        }
-        throw new Error("Server took too long to spin up (HTML 404/502).");
-      }
 
-      const data = JSON.parse(rawText);
       if (data.success) {
         setRoomCode(data.roomCode);
         setMyPlayerId(data.playerId);
@@ -269,19 +271,12 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       let active = true;
       const poll = async () => {
         try {
-          const res = await fetch(getBackendUrl("/api/arena/status"), {
+          const data = await safeFetchJson(getBackendUrl("/api/arena/status"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ roomCode, playerId: myPlayerId })
           });
           
-          const rawText = await res.text();
-          if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-            console.error("[Status Polling] Received HTML instead of JSON status:", rawText);
-            return;
-          }
-
-          const data = JSON.parse(rawText);
           if (!active) return;
           if (data.success && data.room) {
             setGameStatus(data.room.status);
@@ -475,7 +470,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         }
       } else {
         try {
-          await fetch(getBackendUrl("/api/arena/leave"), {
+          await safeFetchJson(getBackendUrl("/api/arena/leave"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -756,7 +751,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || role !== "host") return;
       try {
-        await fetch(getBackendUrl("/api/arena/start"), {
+        await safeFetchJson(getBackendUrl("/api/arena/start"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode })
@@ -781,19 +776,12 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || !myPlayerId) return;
       try {
-        const res = await fetch(getBackendUrl("/api/arena/submit"), {
+        const data = await safeFetchJson(getBackendUrl("/api/arena/submit"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode, playerId: myPlayerId, optionIndex: index })
         });
-        
-        const rawText = await res.text();
-        if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-          console.error("[Submit Answer] Received HTML instead of JSON:", rawText);
-          return;
-        }
 
-        const data = JSON.parse(rawText);
         if (data.success && data.feedback) {
           setRoundFeedback({
             submitted: true,
@@ -821,7 +809,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     } else {
       if (!roomCode || role !== "host") return;
       try {
-        await fetch(getBackendUrl("/api/arena/next"), {
+        await safeFetchJson(getBackendUrl("/api/arena/next"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomCode })

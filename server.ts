@@ -455,6 +455,11 @@ Format for mode 'flashcards': [{"front":"concept", "back":"explanation"}]`;
     }
   });
 
+  // API Catch-all 404 to prevent any non-existent api routes from hitting Vite or index.html
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ success: false, error: `API endpoint ${req.method} ${req.url} not found.` });
+  });
+
   // Serve static application in production, bind Vite dev middleware in development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
