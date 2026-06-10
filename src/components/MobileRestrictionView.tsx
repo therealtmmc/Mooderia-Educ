@@ -21,8 +21,6 @@ export default function MobileRestrictionView() {
       deferredPrompt.userChoice.then((choiceResult: any) => {
         setDeferredPrompt(null);
       });
-    } else {
-      alert("Please install via your browser menu (Add to Home Screen), or you might have already installed it.");
     }
   };
 
