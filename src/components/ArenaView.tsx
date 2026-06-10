@@ -332,7 +332,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     try {
       // Create WebSockets instance securely with VITE_BACKEND_URL evaluation
       let wsUrl = "";
-      const customBackendUrl = (import.meta as any).env.VITE_BACKEND_URL;
+      const customBackendUrl = import.meta.env.VITE_BACKEND_URL;
       
       if (customBackendUrl) {
         // Automatically upgrades https://onrender.com -> wss://onrender.com

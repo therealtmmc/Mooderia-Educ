@@ -45,8 +45,7 @@ export async function obtainGameData(setId: string): Promise<GameContent> {
 
     // Call Cloud Function API route
     // Fallback URL points either to standard local development emulator port or production URL
-    const metaEnv = (import.meta as any).env || {};
-    const functionUrl = (metaEnv.VITE_GENERATION_FUNCTION_URL as string) 
+    const functionUrl = import.meta.env.VITE_GENERATION_FUNCTION_URL 
       || "https://generategamedata-7ssdbqqk5hdnf.a.run.app"; // Default target
 
     const response = await fetch(functionUrl, {
