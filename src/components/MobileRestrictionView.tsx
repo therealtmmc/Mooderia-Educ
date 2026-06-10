@@ -4,6 +4,27 @@ import { Download, FolderOpen, Layers, Brain, PieChart, ShieldCheck, X, Sparkles
 
 export default function MobileRestrictionView() {
   const [activeModal, setActiveModal] = useState<'terms' | 'privacy' | 'creator' | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        setDeferredPrompt(null);
+      });
+    } else {
+      alert("Please install via your browser menu (Add to Home Screen), or you might have already installed it.");
+    }
+  };
 
   const renderModalContent = () => {
     switch (activeModal) {
@@ -72,15 +93,13 @@ export default function MobileRestrictionView() {
             transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
             className="space-y-4"
           >
-            <a 
-              href="https://install.page/mooderiaeducation" 
-              target="_blank"
-              rel="noopener noreferrer"
+            <button 
+              onClick={handleInstallClick}
               className="inline-flex items-center gap-3 bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-xl shadow-violet-600/20 hover:shadow-violet-600/40 hover:-translate-y-1"
             >
               <Download className="w-6 h-6" />
-              Download APK for Android
-            </a>
+              Install App
+            </button>
             <div className="flex flex-col gap-1 pl-1">
               <p className="text-sm font-mono text-slate-500 font-semibold tracking-widest uppercase">Requires Android 8.0 or higher</p>
               <p className="text-sm font-mono text-violet-500 font-semibold tracking-widest uppercase">✨ Fully Offline Capable</p>
