@@ -2,27 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, FolderOpen, Layers, Brain, PieChart, ShieldCheck, X, Sparkles } from 'lucide-react';
 
-export default function MobileRestrictionView() {
+export default function MobileRestrictionView({ onInstall }: { onInstall: () => void }) {
   const [activeModal, setActiveModal] = useState<'terms' | 'privacy' | 'creator' | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  React.useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        setDeferredPrompt(null);
-      });
-    }
-  };
 
   const renderModalContent = () => {
     switch (activeModal) {
@@ -92,7 +73,7 @@ export default function MobileRestrictionView() {
             className="space-y-4"
           >
             <button 
-              onClick={handleInstallClick}
+              onClick={onInstall}
               className="inline-flex items-center gap-3 bg-violet-600 hover:bg-violet-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-xl shadow-violet-600/20 hover:shadow-violet-600/40 hover:-translate-y-1"
             >
               <Download className="w-6 h-6" />

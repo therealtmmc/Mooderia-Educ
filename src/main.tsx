@@ -10,6 +10,11 @@ if ('serviceWorker' in navigator) {
   }).catch(() => {});
 }
 
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  (window as any).deferredPrompt = e;
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

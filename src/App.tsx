@@ -23,6 +23,34 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    // Check if it's already caught by main.tsx
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      (window as any).deferredPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        setDeferredPrompt(null);
+      });
+    } else {
+      alert("To install the app:\n\n📱 iOS / Safari:\nTap the Share icon at the bottom, then select 'Add to Home Screen'.\n\n🤖 Android / Chrome:\nTap the 3-dots menu at the top right, then select 'Add to Home screen' or 'Install App'.");
+    }
+  };
+
   // PERSISTENCE STATE ENGINE
   const [profile, setProfile] = useState<StudentIdentity>(() => {
     const saved = localStorage.getItem("mooderia_profile");
@@ -320,7 +348,7 @@ export default function App() {
 
   // MOBILE RESTRICTION
   if (isMobileOS && !isAppEnv) {
-    return <MobileRestrictionView />;
+    return <MobileRestrictionView onInstall={handleInstallClick} />;
   }
 
   // DESKTOP LANDING
