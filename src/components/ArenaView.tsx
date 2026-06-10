@@ -412,6 +412,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     };
     
     // Also update host UI
+    setRoomCode(s.roomCode);
     setGameStatus(s.gameStatus);
     setCurrentQuestionIdx(s.currentQuestionIdx);
     setTotalQuestions(s.totalQuestions);
@@ -432,7 +433,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     setRole("host");
     setConnectionStatus("connecting");
     
-    const hostCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const hostCode = Math.random().toString(36).slice(2, 8);
     const peer = new Peer(hostCode);
     peerRef.current = peer;
 
@@ -554,7 +555,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
 
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    const targetCode = inputRoomCode.trim().toUpperCase();
+    const targetCode = inputRoomCode.trim().toLowerCase();
     if (!targetCode) return;
     handleTick();
     setRole("player");
