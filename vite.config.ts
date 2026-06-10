@@ -16,6 +16,9 @@ export default defineConfig(() => {
           short_name: 'Mooderia',
           description: 'Academic Portfolio & Recall Engine',
           theme_color: '#030712',
+          background_color: '#030712',
+          display: 'standalone',
+          start_url: '/',
           icons: [
             {
               src: '/logo.png',
