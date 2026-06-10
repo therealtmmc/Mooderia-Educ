@@ -87,6 +87,7 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   const connsRef = useRef<DataConnection[]>([]);
   const hostStateRef = useRef<any>(null); // Only used by host
   const hostTimerRef = useRef<any>(null);
+  const squareRef = useRef<HTMLDivElement>(null);
   
   // Custom interactive arenas persistent state
   const [customArenas, setCustomArenas] = useState<{
@@ -163,6 +164,51 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       }
       if (hostTimerRef.current) {
         clearInterval(hostTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Shared pointer mouse movement
+  useEffect(() => {
+    let square = document.getElementById('shared-square');
+    if (!square) {
+      square = document.createElement('div');
+      square.id = 'shared-square';
+      square.style.height = '15px';
+      square.style.width = '15px';
+      square.style.backgroundColor = 'white';
+      square.style.position = 'fixed';
+      square.style.top = '-100px';
+      square.style.left = '-100px';
+      square.style.zIndex = '9999';
+      square.style.borderRadius = '50%';
+      square.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+      square.style.pointerEvents = 'none';
+      document.body.appendChild(square);
+    }
+    
+    squareRef.current = square as HTMLDivElement;
+
+    let ticking = false;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (connsRef.current && connsRef.current.length > 0) {
+            const msg = [e.clientX, e.clientY];
+            connsRef.current.forEach(c => {
+              if (c.open) c.send(msg);
+            });
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (square) {
+        square.remove();
       }
     };
   }, []);
@@ -416,6 +462,18 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       });
       
       conn.on('data', (payload: any) => {
+        if (Array.isArray(payload)) {
+           if (squareRef.current) {
+              squareRef.current.style.left = payload[0] + 'px';
+              squareRef.current.style.top = payload[1] + 'px';
+           }
+           // Host relays the mouse coordinates to other players
+           connsRef.current.forEach(c => {
+              if (c !== conn && c.open) c.send(payload);
+           });
+           return;
+        }
+
         if (!hostStateRef.current) return;
         const { type, data } = payload;
         
@@ -515,6 +573,14 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       });
 
       conn.on('data', (payload: any) => {
+        if (Array.isArray(payload)) {
+           if (squareRef.current) {
+              squareRef.current.style.left = payload[0] + 'px';
+              squareRef.current.style.top = payload[1] + 'px';
+           }
+           return;
+        }
+
         const { type, data } = payload;
         
         if (type === "joined_successfully") {
