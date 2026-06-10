@@ -124,6 +124,8 @@ export default function App() {
               const snap = await getDoc(doc(db, "users", user.uid));
               if (snap.exists()) {
                 const data = snap.data();
+                const avatarKey = `mooderia_custom_avatar_${user.uid}`;
+                const savedAvatar = localStorage.getItem(avatarKey) || undefined;
                 setProfile({
                   name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || "Student Scholar",
                   studentId: data.uid,
@@ -132,6 +134,7 @@ export default function App() {
                   avatarEmoji: data.avatar_emoji || "🤖",
                   avatarGradientStart: "from-indigo-600",
                   avatarGradientEnd: "to-fuchsia-600",
+                  avatarUrl: savedAvatar,
                   university: data.university || "Academic Institution",
                   program: data.program || "Academic Program",
                   year: data.year || "1st Year",
@@ -424,6 +427,8 @@ export default function App() {
               const snap = await getDoc(doc(db, "users", user.uid));
               if (snap.exists()) {
                 const data = snap.data();
+                const avatarKey = `mooderia_custom_avatar_${user.uid}`;
+                const savedAvatar = localStorage.getItem(avatarKey) || undefined;
                 setProfile({
                   name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || "Student Scholar",
                   studentId: data.uid,
@@ -432,6 +437,7 @@ export default function App() {
                   avatarEmoji: data.avatar_emoji || "🤖",
                   avatarGradientStart: "from-indigo-600",
                   avatarGradientEnd: "to-fuchsia-600",
+                  avatarUrl: savedAvatar,
                   university: data.university || "Academic Institution",
                   program: data.program || "Academic Program",
                   year: data.year || "1st Year",
@@ -514,9 +520,13 @@ export default function App() {
             </button>
             <div 
               onClick={() => handleTabChange('profile')}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-md shadow cursor-pointer ${getCurrentGradientCss()}`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-md shadow cursor-pointer overflow-hidden ${!profile.avatarUrl ? getCurrentGradientCss() : 'bg-slate-800'}`}
             >
-              {profile.avatarEmoji || "⚡"}
+              {profile.avatarUrl ? (
+                 <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                 profile.avatarEmoji || "⚡"
+              )}
             </div>
           </div>
         </header>
@@ -656,9 +666,13 @@ export default function App() {
 
             <div 
               onClick={() => handleTabChange('profile')}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-lg cursor-pointer ${getCurrentGradientCss()}`}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-lg cursor-pointer overflow-hidden ${!profile.avatarUrl ? getCurrentGradientCss() : 'bg-slate-800'}`}
             >
-              {profile.avatarEmoji || "⚡"}
+              {profile.avatarUrl ? (
+                 <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                 profile.avatarEmoji || "⚡"
+              )}
             </div>
           </div>
         </aside>
@@ -784,10 +798,14 @@ export default function App() {
           </div>
           <div 
             onClick={() => handleTabChange('profile')}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_25px_rgba(99,102,241,0.30)] hover:scale-105 active:scale-95 transition-all cursor-pointer select-none border border-white/10 ${getCurrentGradientCss()}`}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_25px_rgba(99,102,241,0.30)] hover:scale-105 active:scale-95 transition-all cursor-pointer select-none border border-white/10 overflow-hidden ${!profile.avatarUrl ? getCurrentGradientCss() : 'bg-slate-800'}`}
             title="Update biometric badge credentials"
           >
-            {profile.avatarEmoji || "⚡"}
+            {profile.avatarUrl ? (
+               <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+               profile.avatarEmoji || "⚡"
+            )}
           </div>
         </div>
       </header>

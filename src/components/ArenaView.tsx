@@ -412,8 +412,14 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
     });
 
     peer.on('connection', (conn) => {
-      conn.on('open', () => {
+      if (!connsRef.current.find(c => c.peer === conn.peer)) {
         connsRef.current.push(conn);
+      }
+      
+      conn.on('open', () => {
+         if (!connsRef.current.find(c => c.peer === conn.peer)) {
+           connsRef.current.push(conn);
+         }
       });
       
       conn.on('data', (payload: any) => {
@@ -421,17 +427,24 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
         const { type, data } = payload;
         
         if (type === 'join_room') {
-           const newPlayer = {
-              playerId: conn.peer,
-              nickname: data.nickname,
-              score: 0,
-              streak: 0,
-              answered: false,
-              selected: null,
-              isCorrect: false,
-              addedPoints: 0
-           };
-           hostStateRef.current.scoreboard.push(newPlayer);
+           const existingIndex = hostStateRef.current.scoreboard.findIndex((p: any) => p.playerId === conn.peer);
+           
+           if (existingIndex !== -1) {
+             // Update existing
+             hostStateRef.current.scoreboard[existingIndex].nickname = data.nickname;
+           } else {
+             const newPlayer = {
+                playerId: conn.peer,
+                nickname: data.nickname,
+                score: 0,
+                streak: 0,
+                answered: false,
+                selected: null,
+                isCorrect: false,
+                addedPoints: 0
+             };
+             hostStateRef.current.scoreboard.push(newPlayer);
+           }
            broadcastHostState();
            
            conn.send({ 
@@ -510,10 +523,16 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
       const conn = peer.connect(targetCode);
       connsRef.current = [conn];
 
-      conn.on('open', () => {
+      const sendJoinRequest = () => {
         setConnectionStatus("connected");
         conn.send({ type: 'join_room', data: { nickname: myNickname } });
-      });
+      };
+
+      if (conn.open) {
+        sendJoinRequest();
+      } else {
+        conn.on('open', sendJoinRequest);
+      }
 
       conn.on('data', (payload: any) => {
         const { type, data } = payload;

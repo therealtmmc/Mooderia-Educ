@@ -133,6 +133,7 @@ export default function OnboardingModal({ user, onOnboardingComplete }: Onboardi
         avatarEmoji: avatarEmoji,
         avatarGradientStart: "from-indigo-600",
         avatarGradientEnd: "to-fuchsia-600",
+        avatarUrl: customAvatarBase64 || undefined,
         university: university.trim(),
         program: program.trim(),
         year: year,

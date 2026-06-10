@@ -52,6 +52,7 @@ export interface StudentIdentity {
   avatarEmoji: string;
   avatarGradientStart: string;
   avatarGradientEnd: string;
+  avatarUrl?: string; // photo device upload
   university?: string; // name of university
   program?: string; // name of program
   year?: string; // year of study

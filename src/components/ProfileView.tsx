@@ -156,6 +156,33 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
     setProfile(prev => ({ ...prev, avatarGradientStart: start, avatarGradientEnd: end }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image is too large. Please select an image under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setProfile(prev => ({ ...prev, avatarUrl: base64 }));
+      if (profile.studentId) {
+        localStorage.setItem(`mooderia_custom_avatar_${profile.studentId}`, base64);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearPhoto = () => {
+    setProfile(prev => ({ ...prev, avatarUrl: undefined }));
+    if (profile.studentId) {
+      localStorage.removeItem(`mooderia_custom_avatar_${profile.studentId}`);
+    }
+  };
+
   // Find css matches for current avatar backdrops
   const getCurrentGradientCss = () => {
     const matched = GRADIENT_PRESETS.find(g => g.start === profile.avatarGradientStart && g.end === profile.avatarGradientEnd);
@@ -212,9 +239,13 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
               {/* LARGE CUSTOM AVATAR BLOCK */}
               <motion.div
                 whileHover={{ rotate: 3, scale: 1.05 }}
-                className={`w-24 h-24 rounded-2xl shrink-0 flex items-center justify-center text-5xl shadow-lg border-2 border-slate-900/80 cursor-pointer ${getCurrentGradientCss()}`}
+                className={`w-24 h-24 rounded-2xl shrink-0 flex items-center justify-center text-5xl shadow-lg border-2 border-slate-900/80 cursor-pointer overflow-hidden ${!profile.avatarUrl ? getCurrentGradientCss() : 'bg-slate-800'}`}
               >
-                <span>{profile.avatarEmoji}</span>
+                {profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{profile.avatarEmoji}</span>
+                )}
               </motion.div>
 
               <div className="space-y-1.5 text-center sm:text-left">
@@ -403,6 +434,28 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
             </AnimatePresence>
 
             <div className="border-t border-slate-850/50 pt-5 space-y-4">
+              {/* PHOTO UPLOAD */}
+              <div className="space-y-2">
+                <span className="text-xs font-mono text-slate-400 uppercase block">Custom Photo Identity</span>
+                <div className="flex items-center gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-850/50">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileChange} 
+                    className="block w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+                  />
+                  {profile.avatarUrl && (
+                    <button 
+                      type="button" 
+                      onClick={handleClearPhoto}
+                      className="px-3 py-1.5 bg-rose-950/20 text-rose-400 border border-rose-900/30 rounded-lg text-xs font-semibold hover:bg-rose-900/40 transition-colors shrink-0"
+                    >
+                      Clear Photo
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* EMOJI CREATOR SELECTOR */}
               <div className="space-y-2">
                 <span className="text-xs font-mono text-slate-400 uppercase block">Digital Identity Avatar Preset</span>
