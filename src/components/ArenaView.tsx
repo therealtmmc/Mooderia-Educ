@@ -950,11 +950,12 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
                 <label className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mb-1">Room Access Code</label>
                 <input 
                   type="text" 
+                  id="hostcode"
                   maxLength={6} 
                   required
-                  placeholder="e.g. 582914"
+                  placeholder="e.g. A3F9B2"
                   value={inputRoomCode}
-                  onChange={(e) => setInputRoomCode(e.target.value.replace(/\D/g, ""))}
+                  onChange={(e) => setInputRoomCode(e.target.value)}
                   className="w-full text-center tracking-[0.2em] font-black text-white bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-500 transition-all uppercase"
                 />
               </div>
