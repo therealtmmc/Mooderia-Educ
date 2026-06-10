@@ -5,7 +5,7 @@ import { ShieldCheck, User, School, Hash, Landmark, Sparkles, Check, Edit2, Save
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../firebase/config";
 import { deleteUser } from "firebase/auth";
-import { doc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, deleteDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { clearOPFS } from "../utils/opfs";
 
 interface ProfileViewProps {
@@ -130,25 +130,59 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
     });
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     handleChime();
+    
+    const newProfileUpdates = {
+      name: tempName || profile.name,
+      studentId: tempStudentId || profile.studentId,
+      institution: tempInstitution || profile.institution,
+      gradeLevel: tempGrade || profile.gradeLevel,
+      university: tempInstitution || profile.institution,
+      program: tempProgram || profile.program,
+      year: tempGrade || profile.year
+    };
+    
     setProfile(prev => ({
       ...prev,
-      name: tempName || prev.name,
-      studentId: tempStudentId || prev.studentId,
-      institution: tempInstitution || prev.institution,
-      gradeLevel: tempGrade || prev.gradeLevel,
-      university: tempInstitution || prev.institution,
-      program: tempProgram || prev.program,
-      year: tempGrade || prev.year
+      ...newProfileUpdates
     }));
+    
+    if (profile.signedIn && auth.currentUser) {
+      try {
+        setIsSaving(true);
+        const nameParts = newProfileUpdates.name.split(" ");
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          first_name: nameParts[0] || "",
+          last_name: nameParts.slice(1).join(" ") || "",
+          university: newProfileUpdates.university || "",
+          program: newProfileUpdates.program || "",
+          year: newProfileUpdates.year || ""
+        });
+      } catch (err) {
+        console.error("Error updating profile", err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
     setIsEditing(false);
   };
 
-  const handleSelectEmoji = (emoji: string) => {
+  const handleSelectEmoji = async (emoji: string) => {
     handleTick();
     setProfile(prev => ({ ...prev, avatarEmoji: emoji }));
+    if (profile.signedIn && auth.currentUser) {
+      try {
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          avatar_emoji: emoji
+        });
+      } catch (err) {
+        console.error("Error updating avatar emoji", err);
+      }
+    }
   };
 
   const handleSelectGradient = (start: string, end: string) => {
@@ -423,10 +457,11 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-semibold text-white bg-indigo-650 hover:bg-indigo-600 rounded-xl border-t border-indigo-400/20 flex items-center gap-1.5 cursor-pointer"
+                      disabled={isSaving}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-indigo-650 hover:bg-indigo-600 rounded-xl border-t border-indigo-400/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                       <Save className="w-3.5 h-3.5" />
-                      <span>Archive Identity</span>
+                      <span>{isSaving ? "Saving..." : "Archive Identity"}</span>
                     </button>
                   </div>
                 </motion.form>
