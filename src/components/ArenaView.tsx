@@ -83,6 +83,21 @@ const PRE_MADE_DECKS = [
 ];
 
 export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const peerRef = useRef<Peer | null>(null);
   const connsRef = useRef<DataConnection[]>([]);
   const hostStateRef = useRef<any>(null); // Only used by host
@@ -678,6 +693,25 @@ export default function ArenaView({ quizzes, profile }: ArenaViewProps) {
   ];
 
   const currentMatchedPlayer = scoreboard.find(p => p.playerId === myPlayerId);
+
+  // -------------------------------------------------------------
+  // OFFLINE BLOCK
+  // -------------------------------------------------------------
+  if (!isOnline) {
+    return (
+      <div className="max-w-xl mx-auto mt-10 bg-slate-950/60 border border-rose-950/40 p-8 sm:p-12 rounded-3xl shadow-2xl relative overflow-hidden text-center space-y-6">
+        <div className="relative z-10 space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-bold font-display text-white uppercase tracking-tight">Arena Blocked</h3>
+          <p className="text-sm text-rose-300 font-mono leading-relaxed">
+            The Study Battle Arena requires an active network connection to host and join peer-to-peer matches. Please reconnect to access the Arena.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // -------------------------------------------------------------
   // RENDER DOCK: ARENA BUILDER / EDITOR
