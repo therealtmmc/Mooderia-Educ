@@ -1665,28 +1665,6 @@ export default function FoldersView({
                     </p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  {(previewingMaterial.url || previewingMaterial.base64Data) && (
-                    <a
-                      href={previewingMaterial.url || previewingMaterial.base64Data}
-                      download={previewingMaterial.name}
-                      onClick={() => handlePop()}
-                      className="inline-flex items-center gap-1.5 p-1.5 px-3 bg-violet-600 hover:bg-violet-700 text-white border border-violet-500/20 rounded-lg text-xs leading-none font-bold transition-all cursor-pointer shadow-md"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download File</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
-                    className="p-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                    title="Close Preview"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
 
               {/* DYNAMIC PLAYER VIEWPORTS */}
@@ -1977,6 +1955,29 @@ export default function FoldersView({
                 )}
 
 
+              </div>
+
+              {/* FOOTER ACTIONS */}
+              <div className="px-6 py-4 bg-slate-950/60 border-t border-slate-800 flex flex-col gap-2 shrink-0">
+                {(previewingMaterial.url || previewingMaterial.base64Data) && (
+                  <a
+                    href={previewingMaterial.url || previewingMaterial.base64Data}
+                    download={previewingMaterial.name}
+                    onClick={() => handlePop()}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 text-white border border-violet-500/25 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md active:scale-[0.99]"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download File</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-semibold overflow-hidden transition-colors cursor-pointer active:scale-[0.99]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Close Frame</span>
+                </button>
               </div>
             </motion.div>
           </div>

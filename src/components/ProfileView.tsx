@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StudentIdentity, FolderCabinet, QuizDeck } from "../types";
 import { sound } from "../utils/sound";
 import { ShieldCheck, User, School, Hash, Landmark, Sparkles, Check, Edit2, Save, AlertCircle, LogOut, Trash2 } from "lucide-react";
@@ -43,9 +43,17 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
   
   const [tempName, setTempName] = useState(profile.name);
   const [tempStudentId, setTempStudentId] = useState(profile.studentId);
-  const [tempInstitution, setTempInstitution] = useState(profile.institution);
-  const [tempGrade, setTempGrade] = useState(profile.gradeLevel);
+  const [tempInstitution, setTempInstitution] = useState(profile.university || profile.institution);
+  const [tempGrade, setTempGrade] = useState(profile.year || profile.gradeLevel);
   const [tempProgram, setTempProgram] = useState(profile.program || "");
+
+  useEffect(() => {
+    setTempName(profile.name);
+    setTempStudentId(profile.studentId);
+    setTempInstitution(profile.university || profile.institution);
+    setTempGrade(profile.year || profile.gradeLevel);
+    setTempProgram(profile.program || "");
+  }, [profile]);
 
   // Stats calculators
   const totalFolders = folders.length;
@@ -162,8 +170,9 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
           program: newProfileUpdates.program || "",
           year: newProfileUpdates.year || ""
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating profile", err);
+        alert(`Failed to save profile details to Cloud: ${err.message || err}`);
       } finally {
         setIsSaving(false);
       }
@@ -172,15 +181,16 @@ export default function ProfileView({ profile, setProfile, folders, quizzes, tot
   };
 
   const handleSelectEmoji = async (emoji: string) => {
-    handleTick();
+    handlePop();
     setProfile(prev => ({ ...prev, avatarEmoji: emoji }));
     if (profile.signedIn && auth.currentUser) {
       try {
         await updateDoc(doc(db, "users", auth.currentUser.uid), {
           avatar_emoji: emoji
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error updating avatar emoji", err);
+        alert(`Failed to save avatar choice to Cloud: ${err.message || err}`);
       }
     }
   };
