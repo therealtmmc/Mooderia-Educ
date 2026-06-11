@@ -40,7 +40,6 @@ service cloud.firestore {
     
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'first_name', 'last_name', 'email', 'university', 'program', 'year', 'theme', 'avatar_emoji', 'total_xp', 'current_streak', 'level_title', 'last_active', 'created_at'])
-        && data.keys().size() == 14
         && data.uid is string && data.uid.size() <= 128
         && data.first_name is string && data.first_name.size() <= 128
         && data.last_name is string && data.last_name.size() <= 128
@@ -67,7 +66,6 @@ service cloud.firestore {
       // Ensure proper creation details (Verify matching UID and fresh stats)
       allow create: if (
          isSignedIn() && 
-         isEmailVerified() &&
          isValidId(uid) && 
          request.auth.uid == uid && 
          isValidUser(incoming()) &&
@@ -83,10 +81,9 @@ service cloud.firestore {
         isSignedIn() && 
         isValidId(uid) && 
         request.auth.uid == uid && 
-        isValidUser(incoming()) &&
         incoming().uid == existing().uid &&
         incoming().email == existing().email &&
-        incoming().created_at == existing().created_at && (
+        (incoming().created_at == existing().created_at || incoming().created_at == null) && (
           // Action: Daily Streak or earning XP via complete Quiz drills or changing themes/avatar/university
           incoming().diff(existing()).affectedKeys().hasOnly(['total_xp', 'current_streak', 'level_title', 'first_name', 'last_name', 'university', 'program', 'year', 'theme', 'avatar_emoji', 'last_active'])
         )
