@@ -5,7 +5,7 @@ import {
   FolderPlus, FolderOpen, FileText, Camera, Volume2, Square, Play, Pause, 
   Trash2, Plus, Sparkles, BookOpen, Beaker, Code, GraduationCap, Music, 
   Feather, ArrowLeft, Mic, ChevronRight, Check, AlertCircle, RefreshCw, Pencil, Edit,
-  Video, Image, Eye, Presentation, Cloud, CloudOff, Download, ExternalLink
+  Video, Image, Eye, Presentation, Cloud, CloudOff, Download, ExternalLink, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { createDirInOPFS, getFileFromOPFS } from "../utils/opfs";
@@ -1488,7 +1488,8 @@ export default function FoldersView({
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -15, scale: 0.98, transition: { duration: 0.15 } }}
                           transition={{ duration: 0.22 }}
-                          className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-750 transition-all rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                          onClick={() => handlePreviewMaterial(mat)}
+                          className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer group active:scale-[0.995]"
                         >
                         <div className="flex items-start gap-3.5">
                           {/* File type icon representation */}
@@ -1562,7 +1563,7 @@ export default function FoldersView({
                           {mat.type === 'voice' && (
                             <div className="flex flex-col items-end gap-1 font-mono mr-1">
                               <button
-                                onClick={() => handleTogglePlayVoice(mat)}
+                                onClick={(e) => { e.stopPropagation(); handleTogglePlayVoice(mat); }}
                                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
                                   isVoicePlaying 
                                     ? "bg-rose-600 text-white shadow-lg" 
@@ -1595,7 +1596,7 @@ export default function FoldersView({
                           )}
 
                           <button
-                            onClick={() => handlePreviewMaterial(mat)}
+                            onClick={(e) => { e.stopPropagation(); handlePreviewMaterial(mat); }}
                             className="p-2 bg-slate-950 hover:bg-emerald-950/40 border border-slate-850 hover:border-emerald-900/30 text-slate-500 hover:text-emerald-400 rounded-lg transition-all"
                             title="Preview / View File Asset"
                           >
@@ -1632,12 +1633,16 @@ export default function FoldersView({
       {/* Interactive Media / Asset Previewer Lightbox */}
       <AnimatePresence>
         {previewingMaterial && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-8 z-50 overflow-y-auto">
+          <div 
+            onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
+            className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-8 z-50 overflow-y-auto cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl md:max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col my-auto max-h-[94vh] md:max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl md:max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col my-auto max-h-[94vh] md:max-h-[90vh] cursor-default relative"
             >
               {/* HEADER CAPTION */}
               <div className="flex items-center justify-between px-6 py-4 bg-slate-950/50 border-b border-slate-800">
@@ -1667,7 +1672,7 @@ export default function FoldersView({
                       href={previewingMaterial.url || previewingMaterial.base64Data}
                       download={previewingMaterial.name}
                       onClick={() => handlePop()}
-                      className="inline-flex items-center gap-1.5 p-1 px-3 bg-violet-600 hover:bg-violet-700 text-white border border-violet-500/20 rounded-lg text-xs leading-none font-bold transition-all cursor-pointer shadow-md"
+                      className="inline-flex items-center gap-1.5 p-1.5 px-3 bg-violet-600 hover:bg-violet-700 text-white border border-violet-500/20 rounded-lg text-xs leading-none font-bold transition-all cursor-pointer shadow-md"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>Download File</span>
@@ -1676,9 +1681,10 @@ export default function FoldersView({
                   <button
                     type="button"
                     onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
-                    className="p-1 px-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-xs leading-none font-semibold transition-all cursor-pointer"
+                    className="p-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                    title="Close Preview"
                   >
-                    ✕ Close Frame
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1971,20 +1977,6 @@ export default function FoldersView({
                 )}
 
 
-              </div>
-
-              {/* FOOTER ACTIONS */}
-              <div className="px-6 py-4 bg-slate-950/40 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-[10px] font-mono text-slate-500">
-                  Secured station file preview engine
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
-                  className="px-5 py-2 bg-purple-650 hover:bg-purple-600 text-white rounded-lg text-xs font-semibold hover:scale-[1.02] transition-all cursor-pointer shadow-lg border-t border-white/10"
-                >
-                  Confirm &amp; Proceed
-                </button>
               </div>
             </motion.div>
           </div>
