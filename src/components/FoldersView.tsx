@@ -1543,9 +1543,11 @@ export default function FoldersView({
                               )}
                             </div>
                             
-                            <p className="text-xs text-slate-450 font-sans leading-relaxed line-clamp-3">
-                              {mat.textContent}
-                            </p>
+                            {(mat.type === 'note' || mat.type === 'voice') && mat.textContent && (
+                              <p className="text-xs text-slate-450 font-sans leading-relaxed line-clamp-3">
+                                {mat.textContent}
+                              </p>
+                            )}
 
                             <div className="flex items-center gap-2 pt-1 font-mono text-[9px] text-slate-500">
                               <span>Logged {new Date(mat.createdAt).toLocaleDateString()}</span>
@@ -1630,12 +1632,12 @@ export default function FoldersView({
       {/* Interactive Media / Asset Previewer Lightbox */}
       <AnimatePresence>
         {previewingMaterial && (
-          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-8 z-50 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col my-auto"
+              className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl md:max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col my-auto max-h-[94vh] md:max-h-[90vh]"
             >
               {/* HEADER CAPTION */}
               <div className="flex items-center justify-between px-6 py-4 bg-slate-950/50 border-b border-slate-800">
@@ -1682,7 +1684,7 @@ export default function FoldersView({
               </div>
 
               {/* DYNAMIC PLAYER VIEWPORTS */}
-              <div className="p-6 overflow-y-auto max-h-[75vh] space-y-4">
+              <div className="p-4 md:p-6 overflow-y-auto flex-1 max-h-[60vh] md:max-h-[66vh] space-y-4">
                 {/* 1. PDF DOCUMENT DETROLLER */}
                 {previewingMaterial.type === 'pdf' && (
                   <div className="space-y-4">
@@ -1713,7 +1715,7 @@ export default function FoldersView({
                       <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950">
                         <iframe 
                           src={getEmbeddableUrl(previewingMaterial.url || previewingMaterial.base64Data || "")} 
-                          className="w-full h-[550px]" 
+                          className="w-full h-[320px] sm:h-[400px] md:h-[460px]" 
                           title={previewingMaterial.name}
                         />
                       </div>
@@ -1761,7 +1763,7 @@ export default function FoldersView({
                         {previewingMaterial.url && previewingMaterial.url.includes('drive.google.com') ? (
                           <iframe 
                             src={getEmbeddableUrl(previewingMaterial.url)}
-                            className="w-full h-[450px]"
+                            className="w-full h-[280px] sm:h-[360px] md:h-[420px]"
                             allow="autoplay"
                             title={previewingMaterial.name}
                           />
@@ -1770,7 +1772,7 @@ export default function FoldersView({
                             src={previewingMaterial.url || previewingMaterial.base64Data} 
                             controls 
                             autoPlay
-                            className="w-full max-h-[500px]" 
+                            className="w-full max-h-[300px] sm:max-h-[420px]" 
                           />
                         )}
                       </div>
