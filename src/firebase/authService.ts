@@ -10,6 +10,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './config';
 import { handleFirestoreError, OperationType } from './errorHandler';
+import { setCachedDriveToken } from './googleDriveService';
 
 /**
  * Checks in Firestore whether a user document already exists at `/users/{uid}`.
@@ -30,8 +31,13 @@ export async function checkUserDocExists(uid: string): Promise<boolean> {
  */
 export async function loginWithGoogle(): Promise<FirebaseUser> {
   const provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
   try {
     const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      setCachedDriveToken(credential.accessToken);
+    }
     return result.user;
   } catch (error: any) {
     console.error("[Mooderia Auth] Google Login Error:", error);

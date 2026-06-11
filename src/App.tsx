@@ -287,19 +287,37 @@ export default function App() {
 
   // Save states modifications automatically 
   useEffect(() => {
-    localStorage.setItem("mooderia_profile", JSON.stringify(profile));
+    try {
+      localStorage.setItem("mooderia_profile", JSON.stringify(profile));
+    } catch (e) {
+      console.error(e);
+      alert("Storage Quota Exceeded for profile settings!");
+    }
   }, [profile]);
 
   useEffect(() => {
-    localStorage.setItem("mooderia_folders", JSON.stringify(folders));
+    try {
+      localStorage.setItem("mooderia_folders", JSON.stringify(folders));
+    } catch (error) {
+      console.error("Local storage quota exceeded for folders", error);
+      alert("Storage Quota Exceeded! Your academic data is too large to fully save locally. Please consider removing unused heavy assets (videos/large docs) to ensure your data saves successfully.");
+    }
   }, [folders]);
 
   useEffect(() => {
-    localStorage.setItem("mooderia_quizzes", JSON.stringify(quizzes));
+    try {
+      localStorage.setItem("mooderia_quizzes", JSON.stringify(quizzes));
+    } catch (e) {
+      console.error(e);
+    }
   }, [quizzes]);
 
   useEffect(() => {
-    localStorage.setItem("mooderia_attempts", JSON.stringify(attempts));
+    try {
+      localStorage.setItem("mooderia_attempts", JSON.stringify(attempts));
+    } catch (e) {
+      console.error(e);
+    }
   }, [attempts]);
 
   useEffect(() => {

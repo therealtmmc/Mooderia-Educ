@@ -46,7 +46,9 @@ export async function extractTextFromFile(file: File): Promise<string> {
  * Decodes printable characters from an ArrayBuffer stream (ASCII and typical UTF-8 intervals).
  */
 function decodePrintableCharacters(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+  // Safe-cap at 200KB to prevent CPU lockups and blank screens on large binary files (PDFs, PPTXs, images, etc.)
+  const maxBytesToScan = 200 * 1024;
+  const bytes = new Uint8Array(buffer.slice(0, maxBytesToScan));
   let out = '';
   let inStringSpan = false;
   let wordBuffer: number[] = [];

@@ -7,6 +7,7 @@ export interface Material {
   durationSeconds?: number;
   textContent?: string;
   createdAt: string;
+  syncStatus?: 'synced' | 'pending' | 'local_only';
 }
 
 export interface FolderCabinet {

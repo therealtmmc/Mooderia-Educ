@@ -5,11 +5,12 @@ import {
   FolderPlus, FolderOpen, FileText, Camera, Volume2, Square, Play, Pause, 
   Trash2, Plus, Sparkles, BookOpen, Beaker, Code, GraduationCap, Music, 
   Feather, ArrowLeft, Mic, ChevronRight, Check, AlertCircle, RefreshCw, Pencil, Edit,
-  Video, Image, Eye, Presentation
+  Video, Image, Eye, Presentation, Cloud, CloudOff, Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { createDirInOPFS } from "../utils/opfs";
+import { createDirInOPFS, getFileFromOPFS } from "../utils/opfs";
 import { uploadStudyFileLocally, runAIGeneratorAndSave, retrieveCachedStudySet } from "../firebase/hybridIntegration";
+import { connectGoogleDrive, getCachedDriveToken, uploadFileToGoogleDrive } from "../firebase/googleDriveService";
 
 interface FoldersViewProps {
   folders: FolderCabinet[];
@@ -75,6 +76,99 @@ export default function FoldersView({
   const [previewingMaterial, setPreviewingMaterial] = useState<Material | null>(null);
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  // Google Drive Integration States
+  const [driveToken, setDriveToken] = useState<string | null>(getCachedDriveToken());
+  const [isUploadingToDrive, setIsUploadingToDrive] = useState(false);
+  const [currentSyncStatus, setCurrentSyncStatus] = useState<Material['syncStatus']>('local_only');
+  const [isSyncingPending, setIsSyncingPending] = useState(false);
+
+  // Sync state with cached token
+  useEffect(() => {
+    setDriveToken(getCachedDriveToken());
+  }, [isAddingMaterial]);
+
+  const handleSyncOfflineFiles = async () => {
+    if (!currentlyOpenedFolder) return;
+    const activeToken = getCachedDriveToken() || driveToken;
+    if (!activeToken) {
+      alert("Please link your Google Drive first to synchronize files!");
+      return;
+    }
+    if (!navigator.onLine) {
+      alert("You are currently offline. Please reconnect to the internet to back up files to Google Drive!");
+      return;
+    }
+
+    const pendingMaterials = currentlyOpenedFolder.materials.filter(m => m.syncStatus === 'pending');
+    if (pendingMaterials.length === 0) {
+      alert("All files in this folder are already synced and backed up to Google Drive!");
+      return;
+    }
+
+    setIsSyncingPending(true);
+    sound.playChime();
+    let successCount = 0;
+    let failedCount = 0;
+
+    const updatedMaterials = await Promise.all(currentlyOpenedFolder.materials.map(async (mat) => {
+      if (mat.syncStatus === 'pending') {
+        try {
+          const fileBlob = await getFileFromOPFS(currentlyOpenedFolder.id, mat.name);
+          if (fileBlob) {
+            const fileToUpload = new File([fileBlob], mat.name, { type: fileBlob.type });
+            const driveResult = await uploadFileToGoogleDrive(fileToUpload, activeToken);
+            if (driveResult && driveResult.webViewLink) {
+              successCount++;
+              return {
+                ...mat,
+                url: driveResult.webViewLink,
+                syncStatus: 'synced' as const
+              };
+            }
+          }
+          failedCount++;
+          return mat;
+        } catch (err) {
+          console.error(`Failed to sync material ${mat.name}:`, err);
+          failedCount++;
+          return mat;
+        }
+      }
+      return mat;
+    }));
+
+    setFolders(prev => prev.map(f => {
+      if (f.id === currentlyOpenedFolder.id) {
+        return {
+          ...f,
+          materials: updatedMaterials
+        };
+      }
+      return f;
+    }));
+
+    setIsSyncingPending(false);
+    if (successCount > 0) {
+      alert(`Synchronized ${successCount} file(s) to Google Drive in folder 'Mooderia Academic Engine'! ${failedCount > 0 ? `(${failedCount} failed)` : ""}`);
+    } else if (failedCount > 0) {
+      alert(`Sync failed. Please check your connection and Google Drive permissions.`);
+    }
+  };
+
+  const handleConnectDrive = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      sound.playChime();
+      const token = await connectGoogleDrive();
+      setDriveToken(token);
+    } catch (err: any) {
+      alert("Failed to authorize Google Drive: " + err.message);
+    }
+  };
 
   // Synced state updates (to reflect if folders list modifies outside)
   const activeFolderInList = folders.find(f => f.id === selectedFolder?.id);
@@ -393,7 +487,39 @@ export default function FoldersView({
       // 1. Upload/save raw file strictly locally to OPFS and fetch instant DOM URL plus plain text
       const { url, extractedText } = await uploadStudyFileLocally(currentlyOpenedFolder.id, file);
       
-      setUploadedUrl(url);
+      let finalUrl = url;
+      let syncStatusTag: Material['syncStatus'] = 'local_only';
+
+      // 2. Google Drive Backup Upload
+      const activeToken = getCachedDriveToken() || driveToken;
+      if (activeToken) {
+        if (navigator.onLine) {
+          setIsUploadingToDrive(true);
+          try {
+            const driveResult = await uploadFileToGoogleDrive(file, activeToken);
+            if (driveResult && driveResult.webViewLink) {
+              finalUrl = driveResult.webViewLink;
+              syncStatusTag = 'synced';
+              console.log("[FoldersView] Successfully linked upload to Google Drive backup URL:", finalUrl);
+            } else {
+              syncStatusTag = 'pending';
+            }
+          } catch (driveErr) {
+            console.error("Google Drive backup failed due to error. Setting to pending queue:", driveErr);
+            syncStatusTag = 'pending';
+          } finally {
+            setIsUploadingToDrive(false);
+          }
+        } else {
+          console.log("[FoldersView] Client is offline. Postponing Drive synchronizing, flagged as pending...");
+          syncStatusTag = 'pending';
+        }
+      } else {
+        syncStatusTag = 'local_only';
+      }
+
+      setCurrentSyncStatus(syncStatusTag);
+      setUploadedUrl(finalUrl);
       setMaterialName(file.name);
       setMaterialContent(extractedText);
 
@@ -421,15 +547,17 @@ export default function FoldersView({
         setUploadedFileType("Academic Draft File");
       }
 
-      // Convert to a base64Data pointer for backwards compatibility in existing players
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string | undefined;
-        if (base64) {
-          setUploadedBase64(base64);
-        }
-      };
-      reader.readAsDataURL(file);
+      // Convert to a base64Data pointer for backwards compatibility in existing players, but only for small images
+      if (typeStr.includes('image') && file.size < 1000000) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string | undefined;
+          if (base64) {
+            setUploadedBase64(base64);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
 
       sound.playChime();
     } catch (err) {
@@ -451,7 +579,8 @@ export default function FoldersView({
       base64Data: uploadedBase64,
       url: uploadedUrl,
       durationSeconds: materialType === 'voice' ? (recordDuration || 120) : undefined,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      syncStatus: currentSyncStatus
     };
 
     setFolders(prev => prev.map(f => {
@@ -948,6 +1077,7 @@ export default function FoldersView({
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                       onClick={() => {
+                        if (isUploadingToDrive) return;
                         const fileInput = document.getElementById('academic-file-picker');
                         if (fileInput) fileInput.click();
                       }}
@@ -963,9 +1093,24 @@ export default function FoldersView({
                         className="hidden" 
                         accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.ogg,.mov,.ppt,.pptx,.key,.mp3,.wav,.m4a,.aac"
                         onChange={handleFileChange}
+                        disabled={isUploadingToDrive}
                       />
                       
-                      {uploadedBase64 ? (
+                      {isUploadingToDrive && (
+                        <div className="absolute inset-0 bg-slate-950/95 z-20 flex flex-col items-center justify-center space-y-3">
+                          <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
+                          <div>
+                            <p className="text-xs font-bold text-white uppercase tracking-wider font-display">
+                              Syncing file with Google Drive...
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Creating cloud backup of this material directly inside your drive
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {uploadedUrl || uploadedBase64 ? (
                         <div className="space-y-3">
                           <div className="mx-auto w-12 h-12 rounded-full bg-emerald-950/30 border border-emerald-950/20 text-emerald-400 flex items-center justify-center animate-bounce">
                             <Check className="w-6 h-6" />
@@ -983,6 +1128,7 @@ export default function FoldersView({
                             onClick={(e) => {
                               e.stopPropagation();
                               setUploadedBase64(undefined);
+                              setUploadedUrl(undefined);
                               setUploadedFileType("");
                               setMaterialName("");
                               setMaterialContent("");
@@ -1006,6 +1152,41 @@ export default function FoldersView({
                               Supports <span className="text-purple-305 font-bold">PDF, Images (Photos), Videos, PowerPoints,</span> and <span className="text-rose-405 font-bold">Audio records</span>.
                             </p>
                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GOOGLE DRIVE SYNC ENABLED CHECKBOX PANEL */}
+                    <div className="p-3.5 bg-slate-950/60 border border-slate-900 rounded-xl flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 text-left">
+                        <div className={`p-2 rounded-lg ${driveToken ? "bg-emerald-950/50 border border-emerald-900/40 text-emerald-400" : "bg-slate-900 border border-slate-850 text-slate-500"}`}>
+                          {driveToken ? <Cloud className="w-4 h-4 shadow-sm" /> : <CloudOff className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-white font-display flex items-center gap-1.5">
+                            Auto Google Drive Backup Sync
+                          </p>
+                          <p className="text-[10px] text-slate-450 mt-0.5 leading-snug">
+                            {driveToken 
+                              ? "Cloud integration Active! Saves directly as a file inside your Google Drive." 
+                              : "Files are stored locally in OPFS. Login with Google / tap connect to back up."}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {!driveToken ? (
+                        <button
+                          type="button"
+                          onClick={(e) => handleConnectDrive(e)}
+                          className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 active:scale-95 text-white border border-violet-500/20 rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-md inline-flex items-center gap-1 shrink-0"
+                        >
+                          <Cloud className="w-3.5 h-3.5" />
+                          <span>Link Drive</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-900/30 rounded-lg shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[9px] text-emerald-400 font-mono font-bold tracking-wider">ACTIVE</span>
                         </div>
                       )}
                     </div>
@@ -1219,13 +1400,35 @@ export default function FoldersView({
 
             {/* LIST OF STUDY MATERIALS INSIDE CABINET */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/20 p-2 rounded-xl">
                 <h3 className="text-lg font-display font-medium text-white uppercase tracking-wider">
                   Archived Assets Index
                 </h3>
-                <span className="text-xs font-mono text-slate-400 font-semibold px-2 py-0.5 bg-slate-900 border border-slate-800 rounded">
-                  {currentlyOpenedFolder?.materials.length || 0} File{currentlyOpenedFolder?.materials.length === 1 ? "" : "s"} Catalogs
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentlyOpenedFolder && currentlyOpenedFolder.materials.some(m => m.syncStatus === 'pending') && driveToken && (
+                    <button
+                      type="button"
+                      onClick={handleSyncOfflineFiles}
+                      disabled={isSyncingPending}
+                      className="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 hover:text-amber-200 border border-amber-500/20 rounded-lg text-[10px] font-mono font-bold tracking-tight transition-all flex items-center gap-1.5 animate-pulse cursor-pointer shadow"
+                    >
+                      {isSyncingPending ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                          <span>Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Cloud className="w-3.5 h-3.5" />
+                          <span>Sync {currentlyOpenedFolder.materials.filter(m => m.syncStatus === 'pending').length} offline files</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <span className="text-xs font-mono text-slate-400 font-semibold px-2 py-1 bg-slate-900 border border-slate-800 rounded">
+                    {currentlyOpenedFolder?.materials.length || 0} File{currentlyOpenedFolder?.materials.length === 1 ? "" : "s"} Catalogs
+                  </span>
+                </div>
               </div>
 
               {!currentlyOpenedFolder || currentlyOpenedFolder.materials.length === 0 ? (
@@ -1269,7 +1472,7 @@ export default function FoldersView({
                           </div>
 
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap text-left">
                               <span className="text-xs font-semibold text-white group-hover:text-purple-300">
                                 {mat.name}
                               </span>
@@ -1287,6 +1490,21 @@ export default function FoldersView({
                                  mat.type === 'powerpoint' ? "PPT Deck" : 
                                  mat.type === 'snapshot' ? "Image" : mat.type}
                               </span>
+                              
+                              {/* Cloud sync status badge representations */}
+                              {mat.syncStatus === 'synced' && (
+                                <span className="text-[8.5px] font-mono uppercase font-bold px-1.5 py-0.5 bg-emerald-950/40 border border-emerald-900/35 text-emerald-400 rounded flex items-center gap-1">
+                                  <Cloud className="w-2.5 h-2.5" />
+                                  <span>Cloud Synced</span>
+                                </span>
+                              )}
+                              
+                              {mat.syncStatus === 'pending' && (
+                                <span className="text-[8.5px] font-mono uppercase font-bold px-1.5 py-0.5 bg-amber-950/40 border border-amber-900/35 text-amber-400 rounded flex items-center gap-1 animate-pulse">
+                                  <CloudOff className="w-2.5 h-2.5" />
+                                  <span>Pending Sync (Offline)</span>
+                                </span>
+                              )}
                             </div>
                             
                             <p className="text-xs text-slate-450 font-sans leading-relaxed line-clamp-3">
@@ -1405,13 +1623,26 @@ export default function FoldersView({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
-                  className="p-1 px-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-xs leading-none font-semibold transition-all cursor-pointer"
-                >
-                  ✕ Close Frame
-                </button>
+                <div className="flex items-center gap-2">
+                  {(previewingMaterial.url || previewingMaterial.base64Data) && (
+                    <a
+                      href={previewingMaterial.url || previewingMaterial.base64Data}
+                      download={previewingMaterial.name}
+                      onClick={() => handlePop()}
+                      className="inline-flex items-center gap-1.5 p-1 px-3 bg-violet-600 hover:bg-violet-700 text-white border border-violet-500/20 rounded-lg text-xs leading-none font-bold transition-all cursor-pointer shadow-md"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download File</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { handleTick(); setPreviewingMaterial(null); setPreviewSlideIndex(0); }}
+                    className="p-1 px-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-xs leading-none font-semibold transition-all cursor-pointer"
+                  >
+                    ✕ Close Frame
+                  </button>
+                </div>
               </div>
 
               {/* DYNAMIC PLAYER VIEWPORTS */}
@@ -1419,10 +1650,10 @@ export default function FoldersView({
                 {/* 1. PDF DOCUMENT DETROLLER */}
                 {previewingMaterial.type === 'pdf' && (
                   <div className="space-y-4">
-                    {previewingMaterial.base64Data ? (
+                    {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950">
                         <iframe 
-                          src={previewingMaterial.base64Data} 
+                          src={previewingMaterial.url || previewingMaterial.base64Data} 
                           className="w-full h-[500px]" 
                           title={previewingMaterial.name}
                         />
@@ -1449,10 +1680,10 @@ export default function FoldersView({
                 {/* 2. SNAPSHOT PHOTO VIEWER */}
                 {previewingMaterial.type === 'snapshot' && (
                   <div className="space-y-4 text-center">
-                    {previewingMaterial.base64Data ? (
+                    {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="relative inline-block max-w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
                         <img 
-                          src={previewingMaterial.base64Data} 
+                          src={previewingMaterial.url || previewingMaterial.base64Data} 
                           className="max-h-[500px] object-contain mx-auto" 
                           referrerPolicy="no-referrer"
                           alt={previewingMaterial.name}
@@ -1480,10 +1711,10 @@ export default function FoldersView({
                 {/* 3. VIDEO PLATFORM THEATER */}
                 {previewingMaterial.type === 'video' && (
                   <div className="space-y-4">
-                    {previewingMaterial.base64Data ? (
+                    {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
                         <video 
-                          src={previewingMaterial.base64Data} 
+                          src={previewingMaterial.url || previewingMaterial.base64Data} 
                           controls 
                           autoPlay
                           className="w-full max-h-[500px]" 
@@ -1547,10 +1778,10 @@ export default function FoldersView({
                       </div>
 
                       {/* Native HTML5 Audio Controller bar */}
-                      {previewingMaterial.base64Data ? (
+                      {previewingMaterial.base64Data || previewingMaterial.url ? (
                         <div className="pt-2">
                           <audio 
-                            src={previewingMaterial.base64Data} 
+                            src={previewingMaterial.url || previewingMaterial.base64Data} 
                             controls 
                             autoPlay
                             className="w-full h-8 outline-none filter invert"
