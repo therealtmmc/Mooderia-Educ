@@ -12,6 +12,19 @@ import { createDirInOPFS, getFileFromOPFS } from "../utils/opfs";
 import { uploadStudyFileLocally, runAIGeneratorAndSave, retrieveCachedStudySet } from "../firebase/hybridIntegration";
 import { connectGoogleDrive, getCachedDriveToken, uploadFileToGoogleDrive } from "../firebase/googleDriveService";
 
+const getEmbeddableUrl = (url: string): string => {
+  if (url && url.includes('drive.google.com')) {
+    let embedUrl = url;
+    if (embedUrl.includes('/view')) {
+      embedUrl = embedUrl.replace(/\/view.*/, '/preview');
+    } else if (!embedUrl.endsWith('/preview')) {
+      embedUrl = embedUrl.replace(/\/preview.*/, '') + '/preview';
+    }
+    return embedUrl;
+  }
+  return url;
+};
+
 interface FoldersViewProps {
   folders: FolderCabinet[];
   setFolders: React.Dispatch<React.SetStateAction<FolderCabinet[]>>;
@@ -274,6 +287,29 @@ export default function FoldersView({
     handleChime();
     setPreviewingMaterial(null);
     onNavigate('quizzes');
+  };
+
+  const handlePreviewMaterial = async (mat: Material) => {
+    handlePop();
+    
+    // Check if the file URL is a temporary blob URL from a previous session and needs recovery from OPFS.
+    if (currentlyOpenedFolder && mat.name && (!mat.url || mat.url.startsWith('blob:'))) {
+      try {
+        const fileData = await getFileFromOPFS(currentlyOpenedFolder.id, mat.name);
+        if (fileData) {
+          const freshUrl = URL.createObjectURL(fileData);
+          setPreviewingMaterial({
+            ...mat,
+            url: freshUrl
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn("[FoldersView] Offline recovery from OPFS failed:", err);
+      }
+    }
+    
+    setPreviewingMaterial(mat);
   };
 
   // Material Edit States
@@ -1557,7 +1593,7 @@ export default function FoldersView({
                           )}
 
                           <button
-                            onClick={() => { handlePop(); setPreviewingMaterial(mat); }}
+                            onClick={() => handlePreviewMaterial(mat)}
                             className="p-2 bg-slate-950 hover:bg-emerald-950/40 border border-slate-850 hover:border-emerald-900/30 text-slate-500 hover:text-emerald-400 rounded-lg transition-all"
                             title="Preview / View File Asset"
                           >
@@ -1713,12 +1749,21 @@ export default function FoldersView({
                   <div className="space-y-4">
                     {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
-                        <video 
-                          src={previewingMaterial.url || previewingMaterial.base64Data} 
-                          controls 
-                          autoPlay
-                          className="w-full max-h-[500px]" 
-                        />
+                        {previewingMaterial.url && previewingMaterial.url.includes('drive.google.com') ? (
+                          <iframe 
+                            src={getEmbeddableUrl(previewingMaterial.url)}
+                            className="w-full h-[450px]"
+                            allow="autoplay"
+                            title={previewingMaterial.name}
+                          />
+                        ) : (
+                          <video 
+                            src={previewingMaterial.url || previewingMaterial.base64Data} 
+                            controls 
+                            autoPlay
+                            className="w-full max-h-[500px]" 
+                          />
+                        )}
                       </div>
                     ) : (
                       <div className="p-12 text-center bg-slate-950/40 rounded-2xl border border-slate-800/60">
@@ -1727,13 +1772,6 @@ export default function FoldersView({
                         <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                           Uploaded tutorial or whiteboard video recording has been captured under keynotes indexing.
                         </p>
-                      </div>
-                    )}
-                    
-                    {previewingMaterial.textContent && (
-                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 text-xs text-left leading-relaxed text-slate-300">
-                        <label className="text-[10px] uppercase font-mono text-cyan-400 font-bold block mb-1.5">Video Transcription / Log</label>
-                        <p>{previewingMaterial.textContent}</p>
                       </div>
                     )}
                   </div>
@@ -1793,13 +1831,6 @@ export default function FoldersView({
                         </div>
                       )}
                     </div>
-
-                    {previewingMaterial.textContent && (
-                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 text-xs text-left leading-relaxed text-slate-400 font-sans">
-                        <label className="text-[10px] uppercase font-mono text-rose-400 font-bold block mb-1">Cassette Transcribed Summary</label>
-                        <p>{previewingMaterial.textContent}</p>
-                      </div>
-                    )}
                   </div>
                 )}
 

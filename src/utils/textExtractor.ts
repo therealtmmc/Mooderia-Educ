@@ -12,6 +12,15 @@ export async function extractTextFromFile(file: File): Promise<string> {
   const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   
   try {
+    // Skip binary scanning for media assets (video/audio) to avoid raw byte stream text noise
+    const isMedia = file.type.startsWith('audio/') || 
+                    file.type.startsWith('video/') || 
+                    ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mp3', '.wav', '.m4a', '.aac'].some(ext => fileExtension.endsWith(ext));
+    
+    if (isMedia) {
+      return generateAssetDescriptivePrompt(file);
+    }
+
     // 1. Plain Text or Markdown files
     if (['.txt', '.md', '.markdown', '.json', '.html', '.css', '.js', '.ts', '.xml'].includes(fileExtension) || file.type.startsWith('text/')) {
       const textContent = await file.text();

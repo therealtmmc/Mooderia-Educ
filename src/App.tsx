@@ -536,9 +536,9 @@ export default function App() {
   // -------------------------------------------------------------
   if (deviceType === 'phone') {
     return (
-      <div className="min-h-screen bg-[#030712] text-slate-150 flex flex-col relative selection:bg-indigo-600/30 select-none pb-28 pt-24">
+      <div className="min-h-screen bg-[#030712] text-slate-150 flex flex-col relative selection:bg-indigo-600/30 select-none pb-28 pt-14">
         {/* Phone minimal HUD tray bar */}
-        <header className="fixed top-0 left-0 right-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 px-4 pb-2 pt-[max(env(safe-area-inset-top),2.5rem)] flex items-center justify-between z-30">
+        <header className="fixed top-0 left-0 right-0 bg-slate-950/95 backdrop-blur-sm border-b border-slate-900/60 px-3.5 py-1.5 pt-[max(env(safe-area-inset-top),0.5rem)] flex items-center justify-between z-30">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-indigo-600 w-7 h-7 flex items-center justify-center overflow-hidden">
               <ShieldCheck className="w-4 h-4 text-white fill-current" />
