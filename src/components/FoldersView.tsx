@@ -5,7 +5,7 @@ import {
   FolderPlus, FolderOpen, FileText, Camera, Volume2, Square, Play, Pause, 
   Trash2, Plus, Sparkles, BookOpen, Beaker, Code, GraduationCap, Music, 
   Feather, ArrowLeft, Mic, ChevronRight, Check, AlertCircle, RefreshCw, Pencil, Edit,
-  Video, Image, Eye, Presentation, Cloud, CloudOff, Download
+  Video, Image, Eye, Presentation, Cloud, CloudOff, Download, ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { createDirInOPFS, getFileFromOPFS } from "../utils/opfs";
@@ -1686,11 +1686,34 @@ export default function FoldersView({
                 {/* 1. PDF DOCUMENT DETROLLER */}
                 {previewingMaterial.type === 'pdf' && (
                   <div className="space-y-4">
+                    {(previewingMaterial.base64Data || previewingMaterial.url) && (
+                      <div className="bg-indigo-950/40 border border-indigo-500/25 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-semibold text-white uppercase font-mono tracking-wider flex items-center gap-1.5 text-indigo-400">
+                            <Eye className="w-4 h-4 text-indigo-400 animate-pulse" />
+                            <span>PDF Sandbox Isolation Assistant</span>
+                          </h4>
+                          <p className="text-[11px] text-slate-350 leading-relaxed font-sans">
+                            Nested browser frames may block direct PDF rendering. If the document preview below is blank, please tap open to view it instantly in a new tab.
+                          </p>
+                        </div>
+                        <a 
+                          href={previewingMaterial.url || previewingMaterial.base64Data}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shrink-0 cursor-pointer flex items-center gap-1.5"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Open PDF Document</span>
+                        </a>
+                      </div>
+                    )}
+
                     {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950">
                         <iframe 
-                          src={previewingMaterial.url || previewingMaterial.base64Data} 
-                          className="w-full h-[500px]" 
+                          src={getEmbeddableUrl(previewingMaterial.url || previewingMaterial.base64Data || "")} 
+                          className="w-full h-[550px]" 
                           title={previewingMaterial.name}
                         />
                       </div>
@@ -1959,118 +1982,7 @@ export default function FoldersView({
                   </div>
                 )}
 
-                {/* 🧠 AI BRAIN ACCELERATORS & HYBRID RECALLS */}
-                <div className="bg-slate-950/60 border border-purple-500/25 p-5 rounded-2xl glow-purple text-left space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
-                      <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
-                        AI Cognitive Accelerator Hub
-                      </h4>
-                    </div>
 
-                    {hasCachedStateCheck ? (
-                      <span className={`text-[10px] font-mono px-2 py-0.5 border rounded-lg font-bold flex items-center gap-1.5 ${
-                        aiOperationSuccess 
-                          ? "bg-emerald-950/45 border-emerald-900/40 text-emerald-400" 
-                          : "bg-slate-900 border-slate-800 text-slate-400"
-                      }`}>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        {aiOperationSuccess ? "SECURE CACHE ACTIVE" : "AWAITING PROMPT"}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-mono text-purple-450 animate-pulse">
-                        Scanning Cloud Logs...
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-xl">
-                    Our hybrid engine acts as a bridge. Raw lecture assets remain cached securely on your local machine ({previewingMaterial.url ? "OPFS Vault" : "Memory Pool"}). High-yield study sets and scores synchronize to Firebase automatically.
-                  </p>
-
-                  <div className="text-[10px] font-mono text-slate-500 bg-slate-950 p-2.5 rounded-lg border border-slate-900 leading-snug">
-                    <span className="text-purple-400 font-bold">Pipeline Status:</span> {cachedContentStatus || "System initialized. Core templates compiled."}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    {/* OPTION 1: HIGH-YIELD ACADEMIC QUIZ */}
-                    <div className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex flex-col justify-between space-y-3">
-                      <div>
-                        <h5 className="text-xs font-display font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                          <Beaker className="w-4 h-4 text-violet-400" />
-                          <span>Spaced-Repetition Quiz</span>
-                        </h5>
-                        <p className="text-[10px] text-slate-450 mt-1 leading-normal font-sans">
-                          Build complex multiple-choice drills with custom question distractor items derived from textbook text.
-                        </p>
-                      </div>
-
-                      <div className="pt-2">
-                        {isGeneratingAI && aiReportType === 'quiz' ? (
-                          <div className="flex items-center gap-2 text-xs font-mono text-purple-400 pt-1">
-                            <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
-                            <span>Accelerating prompts...</span>
-                          </div>
-                        ) : aiOperationSuccess ? (
-                          <button
-                            type="button"
-                            onClick={() => handleLaunchGame()}
-                            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 font-display text-xs font-semibold rounded-lg text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity border-t border-white/10"
-                          >
-                            ⚡ Run Quiz Recall (Cache Active)
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleTriggerAIPipeline('quiz')}
-                            className="w-full py-2 bg-purple-650 hover:bg-purple-605 text-[11px] font-semibold rounded-lg text-white cursor-pointer transition-all border-t border-white/15"
-                          >
-                            Compile High-Yield Quiz
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* OPTION 2: MULTI-LEVEL VOCABULARY FLASHCARDS */}
-                    <div className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex flex-col justify-between space-y-3">
-                      <div>
-                        <h5 className="text-xs font-display font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                          <GraduationCap className="w-4 h-4 text-pink-400" />
-                          <span>Vocab Flashcard Deck</span>
-                        </h5>
-                        <p className="text-[10px] text-slate-450 mt-1 leading-normal font-sans">
-                          Auto-extract core high-yield terms, formulas, and textbook definitions onto physical review cards.
-                        </p>
-                      </div>
-
-                      <div className="pt-2">
-                        {isGeneratingAI && aiReportType === 'flashcards' ? (
-                          <div className="flex items-center gap-2 text-xs font-mono text-pink-450 pt-1">
-                            <RefreshCw className="w-4 h-4 animate-spin text-pink-400" />
-                            <span>Accelerating prompts...</span>
-                          </div>
-                        ) : aiOperationSuccess ? (
-                          <button
-                            type="button"
-                            onClick={() => handleLaunchGame()}
-                            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 font-display text-xs font-semibold rounded-lg text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity border-t border-white/10"
-                          >
-                            ⚡ Launch Flashcard Recall (Cache Active)
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleTriggerAIPipeline('flashcards')}
-                            className="w-full py-2 bg-purple-650 hover:bg-purple-605 text-[11px] font-semibold rounded-lg text-white cursor-pointer transition-all border-t border-white/15"
-                          >
-                            Extract Vocab Flashcards
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* FOOTER ACTIONS */}
