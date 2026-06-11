@@ -1726,19 +1726,12 @@ export default function FoldersView({
                         </p>
                       </div>
                     )}
-                    
-                    {previewingMaterial.textContent && (
-                      <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850 text-xs text-left leading-relaxed text-slate-300">
-                        <label className="text-[10px] uppercase font-mono text-indigo-400 font-bold block mb-2">Parsed Document Text Summary</label>
-                        <p className="whitespace-pre-line">{previewingMaterial.textContent}</p>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {/* 2. SNAPSHOT PHOTO VIEWER */}
                 {previewingMaterial.type === 'snapshot' && (
-                  <div className="space-y-4 text-center">
+                   <div className="space-y-4 text-center">
                     {previewingMaterial.base64Data || previewingMaterial.url ? (
                       <div className="relative inline-block max-w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
                         <img 
@@ -1755,13 +1748,6 @@ export default function FoldersView({
                         <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                           This photograph asset lists visual formula guides or written whiteboards.
                         </p>
-                      </div>
-                    )}
-                    
-                    {previewingMaterial.textContent && (
-                      <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850 text-xs text-left leading-relaxed text-slate-300 max-w-2xl mx-auto">
-                        <label className="text-[10px] uppercase font-mono text-purple-400 font-bold block mb-2">OCR Transcribed Text Data</label>
-                        <p className="whitespace-pre-line">{previewingMaterial.textContent}</p>
                       </div>
                     )}
                   </div>
